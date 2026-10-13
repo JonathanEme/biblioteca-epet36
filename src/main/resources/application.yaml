@@ -1,7 +1,7 @@
 spring:
   datasource:
-    url: jdbc:sqlite:biblioteca.db
-    driver-class-name: org.sqlite.JDBC
+    url: jdbc:libsql:biblioteca.db?syncUrl=[libsql://biblioteca-lucianogarayo.aws-us-east-1.turso.io]&authToken=[eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTE5MjkwODQsImlkIjoiMDFhMTM3NGEtYjEwMS03ZGU1LTk4OTktZmZlZTdjNTk0NDYwIiwia2lkIjoiNDNGZGd3TEI0NExLZTJ1ZE5OU3drSEYxS09mNm9BbnIySzh2OGlXR0wzZyIsInJpZCI6ImNmOWEyM2NlLTRjMDAtNDI5ZS05MWRhLTUwNTY1MWUxMTVjZCJ9.BjeBUsQDtgb7Ar52zM_Fjgy1mrWZk9QQcYF_ZOC9lKJLl2mFdHkdznXn_WaDNrM9q_8nM2GalIV5fiaDO8DJDQ]
+    driver-class-name: tech.turso.jdbc.libSqlDriver
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
