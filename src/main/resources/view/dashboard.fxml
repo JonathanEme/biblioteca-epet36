@@ -1,34 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
 
-<!-- El fx:controller DEBE coincidir con la ruta de tu clase java -->
-<VBox spacing="10" alignment="CENTER" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.epet36.biblioteca.controller.DashboardController">
+<VBox spacing="20" alignment="TOP_CENTER" prefWidth="700" prefHeight="600"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.DashboardController"
+      style="-fx-padding: 20px; -fx-background-color: #ffffff;">
 
-    <Label text="Panel de Control - Biblioteca" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <HBox alignment="CENTER_LEFT" spacing="20">
+        <Label text="Panel de Control" style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+        <Region HBox.hgrow="ALWAYS" />
+        <Button text="↻ Actualizar" onAction="#onActualizarClick" style="-fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-cursor: hand;"/>
+    </HBox>
 
+    <!-- Tarjetas de Resumen (Cards) -->
     <HBox spacing="20" alignment="CENTER">
-        <VBox alignment="CENTER" style="-fx-background-color: #e0e0e0; -fx-padding: 15;">
-            <Label text="Préstamos Activos"/>
-            <Label fx:id="lblActivos" text="0" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+
+        <!-- Tarjeta de Activos -->
+        <VBox alignment="CENTER" prefWidth="250" prefHeight="100"
+              style="-fx-background-color: #e3f2fd; -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-border-color: #90caf9; -fx-padding: 15px;">
+            <Label text="PRÉSTAMOS ACTIVOS" style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565c0;"/>
+            <Label fx:id="lblActivos" text="0" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #0d47a1;"/>
         </VBox>
-        <VBox alignment="CENTER" style="-fx-background-color: #ffcccc; -fx-padding: 15;">
-            <Label text="Préstamos Vencidos"/>
-            <Label fx:id="lblVencidos" text="0" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: red;"/>
+
+        <!-- Tarjeta de Vencidos -->
+        <VBox alignment="CENTER" prefWidth="250" prefHeight="100"
+              style="-fx-background-color: #ffebee; -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-border-color: #ef9a9a; -fx-padding: 15px;">
+            <Label text="PRÉSTAMOS VENCIDOS" style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #c62828;"/>
+            <Label fx:id="lblVencidos" text="0" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #b71c1c;"/>
         </VBox>
     </HBox>
 
-    <Label text="Préstamos Vencidos que requieren atención:"/>
+    <!-- Sección de Alertas (Tabla) -->
+    <VBox spacing="10" VBox.vgrow="ALWAYS" style="-fx-padding: 10px 0 0 0;">
+        <Label text="⚠️ Préstamos Vencidos que requieren atención inmediata:" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #d32f2f;"/>
 
-    <TableView fx:id="tablaVencidos" prefHeight="200" prefWidth="600">
-        <columns>
-            <TableColumn fx:id="colProfesor" text="Profesor" prefWidth="250"/>
-            <TableColumn fx:id="colVencimiento" text="Vencimiento" prefWidth="150"/>
-            <TableColumn fx:id="colEstado" text="Estado" prefWidth="100"/>
-        </columns>
-    </TableView>
-
-    <Button text="Actualizar Datos" onAction="#onActualizarClick"/>
+        <TableView fx:id="tablaVencidos" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="colProfesor" text="Profesor Responsable" prefWidth="200"/>
+                <TableColumn fx:id="colLibro" text="Libro Prestado" prefWidth="250"/>
+                <TableColumn fx:id="colVencimiento" text="Fecha Vencimiento" prefWidth="120"/>
+                <TableColumn fx:id="colDiasRetraso" text="Retraso" prefWidth="90"/>
+            </columns>
+            <placeholder>
+                <Label text="¡Excelente! No hay ningún préstamo vencido." style="-fx-text-fill: #28a745; -fx-font-size: 14px;"/>
+            </placeholder>
+        </TableView>
+    </VBox>
 
 </VBox>
