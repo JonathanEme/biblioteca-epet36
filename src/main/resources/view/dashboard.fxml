@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<!-- El fx:controller DEBE coincidir con la ruta de tu clase java -->
+<VBox spacing="10" alignment="CENTER" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.DashboardController">
+
+    <Label text="Panel de Control - Biblioteca" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+    <HBox spacing="20" alignment="CENTER">
+        <VBox alignment="CENTER" style="-fx-background-color: #e0e0e0; -fx-padding: 15;">
+            <Label text="Préstamos Activos"/>
+            <Label fx:id="lblActivos" text="0" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+        </VBox>
+        <VBox alignment="CENTER" style="-fx-background-color: #ffcccc; -fx-padding: 15;">
+            <Label text="Préstamos Vencidos"/>
+            <Label fx:id="lblVencidos" text="0" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: red;"/>
+        </VBox>
+    </HBox>
+
+    <Label text="Préstamos Vencidos que requieren atención:"/>
+
+    <TableView fx:id="tablaVencidos" prefHeight="200" prefWidth="600">
+        <columns>
+            <TableColumn fx:id="colProfesor" text="Profesor" prefWidth="250"/>
+            <TableColumn fx:id="colVencimiento" text="Vencimiento" prefWidth="150"/>
+            <TableColumn fx:id="colEstado" text="Estado" prefWidth="100"/>
+        </columns>
+    </TableView>
+
+    <Button text="Actualizar Datos" onAction="#onActualizarClick"/>
+
+</VBox>

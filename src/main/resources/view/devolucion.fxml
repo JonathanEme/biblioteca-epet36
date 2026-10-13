@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="15" alignment="TOP_CENTER" prefWidth="700" prefHeight="600"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.DevolucionController"
+      style="-fx-padding: 20px;">
+
+    <Label text="Registrar Devolución" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+    <Label fx:id="lblMensaje" prefWidth="660" wrapText="true" style="-fx-font-size: 14px; -fx-font-weight: bold;" />
+
+    <!-- Barra de búsqueda -->
+    <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-background-color: #f4f4f4; -fx-padding: 15px; -fx-border-color: #ddd; -fx-border-radius: 5px; -fx-background-radius: 5px;">
+        <Label text="Buscar por DNI del Profesor:" style="-fx-font-weight: bold;"/>
+        <TextField fx:id="txtBuscarDni" promptText="Ej: 12345678" prefWidth="200"/>
+        <Button text="Buscar Préstamos Activos" onAction="#onBuscarClick" style="-fx-background-color: #6c757d; -fx-text-fill: white; -fx-cursor: hand;"/>
+    </HBox>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Profesor Seleccionado:" style="-fx-font-weight: bold;"/>
+        <Label fx:id="lblProfesorNombre" text="-" style="-fx-font-size: 14px; -fx-text-fill: #0056b3;"/>
+    </HBox>
+
+    <!-- Tabla de resultados -->
+    <TableView fx:id="tablaPrestamos" VBox.vgrow="ALWAYS" prefHeight="300">
+        <columns>
+            <TableColumn fx:id="colLibro" text="Libro Prestado" prefWidth="350"/>
+            <TableColumn fx:id="colFechaPrestamo" text="Fecha Préstamo" prefWidth="150"/>
+            <TableColumn fx:id="colFechaVencimiento" text="Vencimiento" prefWidth="150"/>
+        </columns>
+        <placeholder>
+            <Label text="Ingrese un DNI y presione Buscar para ver los préstamos."/>
+        </placeholder>
+    </TableView>
+
+    <!-- Botón de acción principal -->
+    <HBox alignment="CENTER_RIGHT" style="-fx-padding: 10px 0 0 0;">
+        <Button text="Devolver Libro Seleccionado" onAction="#onDevolverClick"
+                style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-size: 15px; -fx-padding: 10px 20px; -fx-font-weight: bold; -fx-cursor: hand;"/>
+    </HBox>
+
+</VBox>

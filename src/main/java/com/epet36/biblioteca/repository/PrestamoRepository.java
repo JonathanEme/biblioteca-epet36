@@ -11,4 +11,5 @@ public interface PrestamoRepository extends JpaRepository<Prestamo, Long> {
     // Para el dashboard: buscar préstamos activos o vencidos
     List<Prestamo> findByEstado(String estado);
     List<Prestamo> findByEstadoAndFechaVencimientoBefore(String estado, LocalDate fecha);
+    List<Prestamo> findByProfesor_DniAndEstado(String dni, String estado);
 }

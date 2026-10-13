@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -84,5 +85,9 @@ public class PrestamoService {
                 "Devolución procesada. Profesor: " + prestamo.getProfesor().getDni());
 
         return guardado;
+    }
+
+    public List<Prestamo> buscarPrestamosActivosPorDni(String dni) {
+        return prestamoRepository.findByProfesor_DniAndEstado(dni, "ACTIVO");
     }
 }

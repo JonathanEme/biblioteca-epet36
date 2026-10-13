@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="15" alignment="TOP_CENTER" prefWidth="600" prefHeight="550"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.NuevoPrestamoController"
+      style="-fx-padding: 20px;">
+
+    <Label text="Registrar Nuevo Préstamo" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+
+    <Label fx:id="lblMensaje" prefWidth="560" wrapText="true" text="" />
+
+    <!-- Sección Profesor -->
+    <TitledPane text="Datos del Profesor Responsable" collapsible="false">
+        <VBox spacing="10" style="-fx-padding: 10px;">
+            <Label text="DNI del Profesor (*):"/>
+            <TextField fx:id="txtDniProfesor" promptText="Ingrese el DNI para buscar al profesor..." />
+        </VBox>
+    </TitledPane>
+
+    <!-- Sección Libro -->
+    <TitledPane text="Datos del Libro (Se creará si no existe)" collapsible="false">
+        <VBox spacing="10" style="-fx-padding: 10px;">
+            <HBox spacing="10">
+                <VBox spacing="5" HBox.hgrow="ALWAYS">
+                    <Label text="Código / ISBN:"/>
+                    <TextField fx:id="txtCodigoLibro" promptText="Opcional pero recomendado" />
+                </VBox>
+                <VBox spacing="5" HBox.hgrow="ALWAYS">
+                    <Label text="Título (*):"/>
+                    <TextField fx:id="txtTituloLibro" promptText="Ej: Álgebra de Baldor" />
+                </VBox>
+            </HBox>
+            <VBox spacing="5">
+                <Label text="Autor:"/>
+                <TextField fx:id="txtAutorLibro" promptText="Ej: Aurelio Baldor" />
+            </VBox>
+        </VBox>
+    </TitledPane>
+
+    <!-- Sección Préstamo -->
+    <TitledPane text="Detalles del Préstamo" collapsible="false">
+        <VBox spacing="10" style="-fx-padding: 10px;">
+            <Label text="Fecha prevista de devolución:"/>
+            <DatePicker fx:id="dpFechaVencimiento" prefWidth="200" />
+        </VBox>
+    </TitledPane>
+
+    <HBox spacing="15" alignment="CENTER_RIGHT" style="-fx-padding: 10px 0 0 0;">
+        <Button text="Registrar Préstamo" onAction="#onRegistrarPrestamoClick"
+                style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8px 15px; -fx-cursor: hand;"/>
+    </HBox>
+
+</VBox>

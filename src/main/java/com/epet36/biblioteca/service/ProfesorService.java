@@ -17,6 +17,11 @@ public class ProfesorService {
                 .orElseThrow(() -> new IllegalArgumentException("Profesor no encontrado con ID: " + id));
     }
 
+    public Profesor buscarPorDni(String dni) {
+        return profesorRepository.findByDni(dni)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró un profesor activo con el DNI: " + dni));
+    }
+
     @Transactional
     public Profesor guardar(Profesor profesor) {
         // Aquí podrías agregar validaciones extra (ej. formato de DNI)
