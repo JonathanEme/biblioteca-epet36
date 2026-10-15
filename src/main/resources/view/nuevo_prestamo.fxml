@@ -1,22 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.geometry.Insets?>
 
-<VBox spacing="15" alignment="TOP_CENTER" prefWidth="600" prefHeight="550"
+<VBox spacing="15" alignment="TOP_CENTER" prefWidth="600" prefHeight="650"
       xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.epet36.biblioteca.controller.NuevoPrestamoController"
       style="-fx-padding: 20px;">
 
     <Label text="Registrar Nuevo Préstamo" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
-
     <Label fx:id="lblMensaje" prefWidth="560" wrapText="true" text="" />
 
     <!-- Sección Profesor -->
-    <TitledPane text="Datos del Profesor Responsable" collapsible="false">
+    <TitledPane text="Datos del Responsable y Materia" collapsible="false">
         <VBox spacing="10" style="-fx-padding: 10px;">
-            <Label text="DNI del Profesor (*):"/>
-            <TextField fx:id="txtDniProfesor" promptText="Ingrese el DNI para buscar al profesor..." />
+            <HBox spacing="10">
+                <VBox spacing="5" HBox.hgrow="ALWAYS">
+                    <Label text="Profesor Responsable (*):"/>
+                    <HBox spacing="5">
+                        <ComboBox fx:id="cmbProfesor" promptText="Seleccione un profesor..." maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                        <!-- NUEVO BOTÓN PARA AGREGAR PROFESOR AL VUELO -->
+                        <Button text="+" onAction="#onAgregarProfesorClick"
+                                style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" />
+                    </HBox>
+                </VBox>
+                <VBox spacing="5" prefWidth="200">
+                    <Label text="Materia / Destino:"/>
+                    <TextField fx:id="txtMateria" promptText="Ej: Historia 3° B" />
+                </VBox>
+            </HBox>
         </VBox>
     </TitledPane>
 
@@ -33,10 +44,16 @@
                     <TextField fx:id="txtTituloLibro" promptText="Ej: Álgebra de Baldor" />
                 </VBox>
             </HBox>
-            <VBox spacing="5">
-                <Label text="Autor:"/>
-                <TextField fx:id="txtAutorLibro" promptText="Ej: Aurelio Baldor" />
-            </VBox>
+            <HBox spacing="10">
+                <VBox spacing="5" HBox.hgrow="ALWAYS">
+                    <Label text="Autor:"/>
+                    <TextField fx:id="txtAutorLibro" />
+                </VBox>
+                <VBox spacing="5" prefWidth="120">
+                    <Label text="Cantidad:"/>
+                    <Spinner fx:id="spnCantidad" prefWidth="120"/>
+                </VBox>
+            </HBox>
         </VBox>
     </TitledPane>
 
@@ -52,5 +69,4 @@
         <Button text="Registrar Préstamo" onAction="#onRegistrarPrestamoClick"
                 style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8px 15px; -fx-cursor: hand;"/>
     </HBox>
-
 </VBox>

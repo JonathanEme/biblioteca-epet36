@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<HBox spacing="20" prefWidth="900" prefHeight="600"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.ProfesorController"
+      style="-fx-padding: 20px;">
+
+    <!-- LADO IZQUIERDO: Tabla -->
+    <VBox spacing="10" HBox.hgrow="ALWAYS">
+        <Label text="Gestión de Profesores" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+
+        <TableView fx:id="tablaProfesores" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="colDni" text="DNI" prefWidth="90"/>
+                <TableColumn fx:id="colApellido" text="Apellido" prefWidth="120"/>
+                <TableColumn fx:id="colNombre" text="Nombre" prefWidth="120"/>
+                <TableColumn fx:id="colContacto" text="Contacto" prefWidth="150"/>
+                <TableColumn fx:id="colEstado" text="Estado" prefWidth="80"/>
+            </columns>
+        </TableView>
+    </VBox>
+
+    <!-- LADO DERECHO: Formulario -->
+    <VBox spacing="15" prefWidth="300" style="-fx-background-color: #f8f9fa; -fx-padding: 20px; -fx-border-color: #dee2e6; -fx-border-radius: 5px;">
+        <Label text="Datos del Profesor" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+
+        <Label fx:id="lblMensaje" wrapText="true" style="-fx-font-weight: bold;"/>
+
+        <VBox spacing="5">
+            <Label text="DNI:"/>
+            <TextField fx:id="txtDni" />
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Nombre (*):"/>
+            <TextField fx:id="txtNombre" />
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Apellido (*):"/>
+            <TextField fx:id="txtApellido" />
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Email o Teléfono:"/>
+            <TextField fx:id="txtContacto" />
+        </VBox>
+
+        <CheckBox fx:id="chkActivo" text="Profesor Activo" selected="true" />
+
+        <Region VBox.vgrow="ALWAYS" /> <!-- Empuja los botones hacia abajo -->
+
+        <HBox spacing="10" alignment="CENTER_RIGHT">
+            <Button text="Limpiar / Nuevo" onAction="#onLimpiarClick" style="-fx-cursor: hand;"/>
+            <Button text="Guardar" onAction="#onGuardarClick"
+                    style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"/>
+        </HBox>
+    </VBox>
+
+</HBox>

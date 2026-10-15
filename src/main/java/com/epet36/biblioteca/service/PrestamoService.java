@@ -22,72 +22,88 @@ public class PrestamoService {
     private final UsuarioService usuarioService;
     private final AuditoriaService auditoriaService;
 
+    // Actualizamos los parámetros
     @Transactional
-    public Prestamo registrarPrestamo(Long profesorId, Long usuarioId, Libro libroIngresado, LocalDate fechaVencimiento) {
+    public Prestamo registrarPrestamo(Long profesorId, Long usuarioId, Libro libroIngresado, LocalDate fechaVencimiento, String materia, int cantidad) {
 
-        // 1. Obtener entidades relacionadas validadas
         Profesor profesor = profesorService.buscarPorId(profesorId);
-        Usuario usuario = usuarioService.buscarPorId(usuarioId);
+        Usuario usuario = usuarioService.obtenerUsuarioPorDefecto();
 
-        // 2. Resolver el libro (buscar o crear)
-        Libro libroFinal = libroService.obtenerOCrearLibroParaPrestamo(libroIngresado);
+        // PASO CLAVE: Le pasamos la cantidad al LibroService
+        Libro libroFinal = libroService.obtenerOCrearLibroParaPrestamo(libroIngresado, cantidad);
 
-        // 3. Actualizar inventario (-1) -> Esto lanza excepción si no hay stock, haciendo rollback
-        libroService.actualizarDisponibilidad(libroFinal.getId(), -1);
+        // Descontamos la cantidad prestada (ahora el resultado siempre será >= 0)
+        libroService.actualizarDisponibilidad(libroFinal.getId(), -cantidad);
 
-        // 4. Construir y guardar el préstamo
         Prestamo prestamo = Prestamo.builder()
                 .profesor(profesor)
                 .usuarioAlta(usuario)
                 .fechaVencimiento(fechaVencimiento)
+                .materia(materia)
                 .estado("ACTIVO")
                 .build();
 
         PrestamoDetalle detalle = PrestamoDetalle.builder()
                 .libro(libroFinal)
-                .cantidad(1)
+                .cantidad(cantidad) // Guardamos la cantidad prestada
+                .cantidadDevuelta(0)
                 .build();
         prestamo.addDetalle(detalle);
 
         Prestamo guardado = prestamoRepository.save(prestamo);
 
-        // 5. Auditar la acción
         auditoriaService.registrar("PRESTAR", "Prestamo", guardado.getId(), usuario,
-                "Préstamo registrado al profesor DNI: " + profesor.getDni() + " (Libro: " + libroFinal.getTitulo() + ")");
+                "Préstamo de " + cantidad + " libro(s) a profesor: " + profesor.getApellido() + " para materia: " + materia);
 
         return guardado;
     }
 
+    public List<Prestamo> buscarPrestamosMultifiltro(String filtro) {
+        return prestamoRepository.buscarPrestamosMultifiltro(filtro);
+    }
+
+    public List<Prestamo> obtenerTodosLosPrestamos() {
+        return prestamoRepository.obtenerTodosOrdenadosPorFechaDesc();
+    }
+
     @Transactional
-    public Prestamo registrarDevolucion(Long prestamoId, Long usuarioId) {
+    public Prestamo registrarDevolucion(Long prestamoId, Long usuarioId, int cantidadADevolver) {
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
 
         Prestamo prestamo = prestamoRepository.findById(prestamoId)
                 .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado"));
 
-        if (!"ACTIVO".equals(prestamo.getEstado())) {
-            throw new IllegalStateException("El préstamo ya se encuentra devuelto o cerrado.");
+        if ("DEVUELTO".equals(prestamo.getEstado())) {
+            throw new IllegalStateException("El préstamo ya se encuentra completamente devuelto.");
         }
 
-        // Actualizar estado del préstamo
-        prestamo.setEstado("DEVUELTO");
-        prestamo.setFechaDevolucion(LocalDateTime.now());
+        PrestamoDetalle detalle = prestamo.getDetalles().get(0); // Para el MVP asumimos 1 libro por préstamo
+        int devueltosActuales = detalle.getCantidadDevuelta() == null ? 0 : detalle.getCantidadDevuelta();
+        int cantidadPendiente = detalle.getCantidad() - devueltosActuales;
 
-        // Restaurar disponibilidad de todos los libros en el detalle (+1)
-        for (PrestamoDetalle detalle : prestamo.getDetalles()) {
-            libroService.actualizarDisponibilidad(detalle.getLibro().getId(), detalle.getCantidad());
+        if (cantidadADevolver <= 0 || cantidadADevolver > cantidadPendiente) {
+            throw new IllegalArgumentException("Cantidad a devolver inválida. Quedan " + cantidadPendiente + " pendientes.");
         }
 
-        Prestamo guardado = prestamoRepository.save(prestamo);
+        // 1. Sumamos la nueva devolución al contador
+        detalle.setCantidadDevuelta(devueltosActuales + cantidadADevolver);
 
-        // Auditar
-        auditoriaService.registrar("DEVOLVER", "Prestamo", guardado.getId(), usuario,
-                "Devolución procesada. Profesor: " + prestamo.getProfesor().getDni());
+        // 2. Restauramos la disponibilidad física del libro
+        libroService.actualizarDisponibilidad(detalle.getLibro().getId(), cantidadADevolver);
 
-        return guardado;
-    }
+        // 3. Evaluamos el nuevo estado del préstamo
+        if (detalle.getCantidadDevuelta().equals(detalle.getCantidad())) {
+            prestamo.setEstado("DEVUELTO");
+            prestamo.setFechaDevolucion(LocalDateTime.now());
+            auditoriaService.registrar("DEVOLVER_TOTAL", "Prestamo", prestamo.getId(), usuario,
+                    "Devolución TOTAL completada. (" + detalle.getLibro().getTitulo() + ")");
+        } else {
+            prestamo.setEstado("PARCIAL");
+            // No se pone fecha_devolucion porque aún quedan libros afuera
+            auditoriaService.registrar("DEVOLVER_PARCIAL", "Prestamo", prestamo.getId(), usuario,
+                    "Devolución PARCIAL de " + cantidadADevolver + " libro(s). (" + detalle.getLibro().getTitulo() + ")");
+        }
 
-    public List<Prestamo> buscarPrestamosActivosPorDni(String dni) {
-        return prestamoRepository.findByProfesor_DniAndEstado(dni, "ACTIVO");
+        return prestamoRepository.save(prestamo);
     }
 }

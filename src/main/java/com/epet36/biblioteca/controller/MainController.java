@@ -44,7 +44,7 @@ public class MainController {
 
     @FXML
     public void mostrarProfesores() {
-        // cargarVista("/view/profesores.fxml"); // Lo implementaremos luego
+        cargarVista("/view/profesores.fxml");
     }
 
     /**

@@ -18,12 +18,12 @@ public class LibroService {
     }
 
     @Transactional
-    public Libro obtenerOCrearLibroParaPrestamo(Libro libroIngresado) {
+    // Agregamos el parámetro cantidadRequerida
+    public Libro obtenerOCrearLibroParaPrestamo(Libro libroIngresado, int cantidadRequerida) {
         if (libroIngresado.getId() != null) {
             return buscarPorId(libroIngresado.getId());
         }
 
-        // Buscar por ISBN o Código si fueron provistos
         if (libroIngresado.getIsbn() != null && !libroIngresado.getIsbn().isEmpty()) {
             var existente = libroRepository.findByIsbn(libroIngresado.getIsbn());
             if (existente.isPresent()) return existente.get();
@@ -34,15 +34,14 @@ public class LibroService {
             if (existente.isPresent()) return existente.get();
         }
 
-        // Búsqueda por título como red de seguridad
         var porTitulo = libroRepository.findByTituloIgnoreCase(libroIngresado.getTitulo());
         if (porTitulo.isPresent()) {
             return porTitulo.get();
         }
 
-        // Es un libro nuevo: Inicializamos su stock
-        libroIngresado.setCantidadTotal(1);
-        libroIngresado.setDisponibles(1);
+        // Si es un libro nuevo, su stock total y disponible inicial es igual a lo que están llevando
+        libroIngresado.setCantidadTotal(cantidadRequerida);
+        libroIngresado.setDisponibles(cantidadRequerida);
         return libroRepository.save(libroIngresado);
     }
 

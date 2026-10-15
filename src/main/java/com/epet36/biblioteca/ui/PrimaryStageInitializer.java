@@ -50,6 +50,7 @@ public class PrimaryStageInitializer implements ApplicationListener<StageReadyEv
             stage.setScene(new Scene(root, 700, 600)); // Ajusta el tamaño si lo necesitas
             stage.setTitle(applicationTitle);
             stage.centerOnScreen();
+            stage.setMaximized(true);
             stage.show(); // ¡Esto es lo que hace visible la ventana!
 
         } catch (IOException e) {

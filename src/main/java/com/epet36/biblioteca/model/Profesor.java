@@ -7,7 +7,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "profesores")
+@Table(name = "profesores", uniqueConstraints = {
+        // Aseguramos que no haya dos profesores con el mismo nombre y apellido
+        @UniqueConstraint(columnNames = {"nombre", "apellido"})
+})
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor @Builder
 public class Profesor {
@@ -16,7 +19,8 @@ public class Profesor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    // Quitamos nullable = false. Sigue siendo unique por si lo cargan.
+    @Column(unique = true)
     private String dni;
 
     @Column(nullable = false)

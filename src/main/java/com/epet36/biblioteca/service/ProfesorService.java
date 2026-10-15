@@ -22,12 +22,31 @@ public class ProfesorService {
                 .orElseThrow(() -> new IllegalArgumentException("No se encontró un profesor activo con el DNI: " + dni));
     }
 
+    public java.util.List<Profesor> obtenerTodosActivos() {
+        return profesorRepository.findByActivoTrueOrderByApellidoAscNombreAsc();
+    }
+
     @Transactional
     public Profesor guardar(Profesor profesor) {
-        // Aquí podrías agregar validaciones extra (ej. formato de DNI)
-        if (profesor.getId() == null && profesorRepository.findByDni(profesor.getDni()).isPresent()) {
-            throw new IllegalStateException("Ya existe un profesor registrado con el DNI: " + profesor.getDni());
+        // 1. Validar unicidad de Nombre y Apellido
+        var existentePorNombre = profesorRepository.findByNombreIgnoreCaseAndApellidoIgnoreCase(profesor.getNombre(), profesor.getApellido());
+        if (existentePorNombre.isPresent() && !existentePorNombre.get().getId().equals(profesor.getId())) {
+            throw new IllegalStateException("Ya existe un profesor registrado como: " + profesor.getNombre() + " " + profesor.getApellido());
         }
+
+        // 2. Controlar el DNI (convertir vacíos a nulos para que SQLite no tire error de Unique Constraint con strings vacíos)
+        if (profesor.getDni() != null && profesor.getDni().trim().isEmpty()) {
+            profesor.setDni(null);
+        }
+
+        // 3. Validar unicidad de DNI (solo si lo ingresaron)
+        if (profesor.getDni() != null) {
+            var existentePorDni = profesorRepository.findByDni(profesor.getDni());
+            if (existentePorDni.isPresent() && !existentePorDni.get().getId().equals(profesor.getId())) {
+                throw new IllegalStateException("Ya existe otro profesor registrado con el DNI: " + profesor.getDni());
+            }
+        }
+
         return profesorRepository.save(profesor);
     }
 

@@ -16,6 +16,12 @@ public class UsuarioService {
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
     }
 
+    // Agregar este método
+    public Usuario obtenerUsuarioPorDefecto() {
+        return usuarioRepository.findByUsername("admin")
+                .orElseThrow(() -> new IllegalStateException("El usuario 'admin' no existe en la base de datos."));
+    }
+
     // Aquí iría el método de autenticación validando el passwordHash
     public Usuario autenticar(String username, String password) {
         // TODO: Implementar validación de hash (ej. BCrypt)

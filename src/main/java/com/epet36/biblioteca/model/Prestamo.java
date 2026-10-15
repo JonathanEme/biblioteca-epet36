@@ -37,6 +37,9 @@ public class Prestamo {
     @Column(name = "fecha_devolucion")
     private LocalDateTime fechaDevolucion;
 
+    @Column(name = "materia")
+    private String materia;
+
     // ACTIVO, DEVUELTO, VENCIDO
     @Column(nullable = false)
     @Builder.Default

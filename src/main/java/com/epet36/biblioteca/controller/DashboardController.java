@@ -77,12 +77,11 @@ public class DashboardController implements Initializable {
     }
 
     public void cargarDatosDashboard() {
-        // Todos los activos
-        List<Prestamo> activos = prestamoRepository.findByEstado("ACTIVO");
+        // Usamos los nuevos métodos
+        List<Prestamo> activos = prestamoRepository.findByEstadoActivoOParcialConDetalles();
         lblActivos.setText(String.valueOf(activos.size()));
 
-        // Solo los vencidos (estado ACTIVO y fechaVencimiento menor a hoy)
-        List<Prestamo> vencidos = prestamoRepository.findByEstadoAndFechaVencimientoBefore("ACTIVO", LocalDate.now());
+        List<Prestamo> vencidos = prestamoRepository.findByEstadoAndFechaVencimientoBeforeConDetalles(LocalDate.now());
         lblVencidos.setText(String.valueOf(vencidos.size()));
 
         prestamosVencidosList.clear();

@@ -23,4 +23,8 @@ public class PrestamoDetalle {
 
     @Builder.Default
     private Integer cantidad = 1;
+
+    @Column(name = "cantidad_devuelta")
+    @Builder.Default
+    private Integer cantidadDevuelta = 0;
 }
