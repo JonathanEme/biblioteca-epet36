@@ -13,14 +13,20 @@
     <!-- Sección Profesor -->
     <TitledPane text="Datos del Responsable y Materia" collapsible="false">
         <VBox spacing="10" style="-fx-padding: 10px;">
-            <HBox spacing="10">
+            <HBox spacing="10" alignment="CENTER_LEFT">
                 <VBox spacing="5" HBox.hgrow="ALWAYS">
                     <Label text="Profesor Responsable (*):"/>
                     <HBox spacing="5">
-                        <ComboBox fx:id="cmbProfesor" promptText="Seleccione un profesor..." maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-                        <!-- NUEVO BOTÓN PARA AGREGAR PROFESOR AL VUELO -->
-                        <Button text="+" onAction="#onAgregarProfesorClick"
-                                style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" />
+                        <!-- Campo no editable, se llena con el buscador -->
+                        <TextField fx:id="txtProfesorSeleccionado" promptText="Haga clic en 🔍 para seleccionar..." editable="false" HBox.hgrow="ALWAYS" style="-fx-background-color: #f8f9fa;"/>
+
+                        <!-- BOTÓN BUSCAR PROFESOR -->
+                        <Button text="🔍 Buscar" onAction="#onBuscarProfesorClick"
+                                style="-fx-background-color: #6c757d; -fx-text-fill: white; -fx-cursor: hand;" />
+
+                        <!-- BOTÓN NUEVO PROFESOR -->
+                        <Button text="+ Nuevo" onAction="#onAgregarProfesorClick"
+                                style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-cursor: hand;" />
                     </HBox>
                 </VBox>
                 <VBox spacing="5" prefWidth="200">

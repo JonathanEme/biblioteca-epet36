@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<HBox spacing="20" prefWidth="1000" prefHeight="650"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.InventarioController"
+      style="-fx-padding: 20px;">
+
+    <!-- LADO IZQUIERDO: Tabla -->
+    <VBox spacing="10" HBox.hgrow="ALWAYS">
+        <Label text="Inventario de Libros" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+
+        <TextField fx:id="txtBuscar" promptText="Buscar por Título, Autor, Código o ISBN..." style="-fx-padding: 8px;"/>
+
+        <TableView fx:id="tablaLibros" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="colCodigo" text="Código/ISBN" prefWidth="120"/>
+                <TableColumn fx:id="colTitulo" text="Título" prefWidth="250"/>
+                <TableColumn fx:id="colAutor" text="Autor" prefWidth="150"/>
+                <TableColumn fx:id="colStock" text="Disponibles / Total" prefWidth="120"/>
+            </columns>
+        </TableView>
+    </VBox>
+
+    <!-- LADO DERECHO: Formulario de Edición -->
+    <VBox spacing="15" prefWidth="320" style="-fx-background-color: #f8f9fa; -fx-padding: 20px; -fx-border-color: #dee2e6; -fx-border-radius: 5px;">
+        <Label text="Detalle del Libro" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+
+        <Label fx:id="lblMensaje" wrapText="true" style="-fx-font-weight: bold;"/>
+
+        <HBox spacing="10">
+            <VBox spacing="5" HBox.hgrow="ALWAYS">
+                <Label text="Código Interno:"/>
+                <TextField fx:id="txtCodigo" />
+            </VBox>
+            <VBox spacing="5" HBox.hgrow="ALWAYS">
+                <Label text="ISBN:"/>
+                <TextField fx:id="txtIsbn" />
+            </VBox>
+        </HBox>
+
+        <VBox spacing="5">
+            <Label text="Título (*):"/>
+            <TextField fx:id="txtTitulo" />
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Autor:"/>
+            <TextField fx:id="txtAutor" />
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Materia / Categoría:"/>
+            <TextField fx:id="txtCategoria" />
+        </VBox>
+
+        <HBox spacing="15" alignment="CENTER_LEFT" style="-fx-padding: 10px 0 0 0; -fx-border-color: #ddd; -fx-border-width: 1 0 0 0;">
+            <VBox spacing="5">
+                <Label text="Stock Total Físico:" style="-fx-font-weight: bold;"/>
+                <Spinner fx:id="spnCantidadTotal" prefWidth="120"/>
+            </VBox>
+        </HBox>
+        <Label fx:id="lblDisponibles" text="-" style="-fx-text-fill: #0056b3; -fx-font-style: italic;"/>
+
+        <Region VBox.vgrow="ALWAYS" />
+
+        <HBox spacing="10" alignment="CENTER_RIGHT">
+            <Button text="Limpiar / Nuevo" onAction="#onLimpiarClick" style="-fx-cursor: hand;"/>
+            <Button text="Guardar" onAction="#onGuardarClick"
+                    style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"/>
+        </HBox>
+    </VBox>
+
+</HBox>

@@ -47,6 +47,11 @@ public class MainController {
         cargarVista("/view/profesores.fxml");
     }
 
+    @FXML
+    public void mostrarInventario() {
+        cargarVista("/view/inventario.fxml");
+    }
+
     /**
      * Método genérico para cargar cualquier FXML en el centro del BorderPane
      */

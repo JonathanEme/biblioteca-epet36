@@ -2,20 +2,22 @@ package com.epet36.biblioteca.controller;
 
 import com.epet36.biblioteca.model.Libro;
 import com.epet36.biblioteca.model.Profesor;
+import com.epet36.biblioteca.service.LibroService;
 import com.epet36.biblioteca.service.PrestamoService;
 import com.epet36.biblioteca.service.ProfesorService;
 import com.epet36.biblioteca.service.UsuarioService;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.util.StringConverter;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.layout.GridPane;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.beans.value.ChangeListener;
+import javafx.scene.control.*;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -27,66 +29,191 @@ public class NuevoPrestamoController {
     private final PrestamoService prestamoService;
     private final ProfesorService profesorService;
     private final UsuarioService usuarioService;
+    private final LibroService libroService;
 
-    // Campos UI
-    @FXML private ComboBox<Profesor> cmbProfesor;
+    // UI Profesor
+    @FXML private TextField txtProfesorSeleccionado;
+    private Profesor profesorSeleccionado = null; // Guardamos la referencia aquí
+
+    // UI Libro
     @FXML private TextField txtCodigoLibro;
     @FXML private TextField txtTituloLibro;
     @FXML private TextField txtAutorLibro;
 
+    // UI Préstamo
     @FXML private TextField txtMateria;
     @FXML private Spinner<Integer> spnCantidad;
     @FXML private DatePicker dpFechaVencimiento;
     @FXML private Label lblMensaje;
+
+    // Componente para sugerencias de libros
+    private ContextMenu sugerenciasPopup;
 
     @FXML
     public void initialize() {
         dpFechaVencimiento.setValue(LocalDate.now().plusDays(14));
         spnCantidad.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 50, 1));
 
-        cargarProfesores();
+        configurarAutocompletadoLibro();
     }
 
-    private void cargarProfesores() {
-        List<Profesor> profesores = profesorService.obtenerTodosActivos();
-        cmbProfesor.setItems(FXCollections.observableArrayList(profesores));
+    // =================================================================================
+    // 1. LÓGICA DE AUTOCOMPLETADO DE LIBROS
+    // =================================================================================
+    private void configurarAutocompletadoLibro() {
+        sugerenciasPopup = new ContextMenu();
 
-        // Configuramos cómo se muestra el profesor en el desplegable
-        cmbProfesor.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Profesor p) {
-                return p == null ? "" : p.getApellido() + ", " + p.getNombre() + " (DNI: " + p.getDni() + ")";
+        // Escucha cambios en el campo Título
+        txtTituloLibro.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (txtTituloLibro.isFocused() && newValue != null && newValue.length() >= 3) {
+                mostrarSugerencias(newValue, txtTituloLibro);
+            } else if (newValue == null || newValue.length() < 3) {
+                sugerenciasPopup.hide();
             }
-            @Override
-            public Profesor fromString(String string) { return null; }
+        });
+
+        // Escucha cambios en el campo Código/ISBN
+        txtCodigoLibro.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (txtCodigoLibro.isFocused() && newValue != null && newValue.length() >= 3) {
+                mostrarSugerencias(newValue, txtCodigoLibro);
+            } else if (newValue == null || newValue.length() < 3) {
+                sugerenciasPopup.hide();
+            }
         });
     }
 
+    private void mostrarSugerencias(String filtro, TextField campoAsociado) {
+        List<Libro> sugerencias = libroService.buscarSugerencias(filtro);
+        sugerenciasPopup.getItems().clear();
+
+        if (sugerencias.isEmpty()) {
+            sugerenciasPopup.hide();
+            return;
+        }
+
+        for (Libro libro : sugerencias) {
+            String codigoTexto = (libro.getCodigo() != null) ? libro.getCodigo() : (libro.getIsbn() != null ? libro.getIsbn() : "");
+            MenuItem item = new MenuItem(libro.getTitulo() + " - " + libro.getAutor() + " (" + codigoTexto + ")");
+
+            // Si el usuario hace clic en la sugerencia, autocompletamos los campos
+            item.setOnAction(e -> {
+                txtCodigoLibro.setText(codigoTexto);
+                txtTituloLibro.setText(libro.getTitulo());
+                txtAutorLibro.setText(libro.getAutor());
+            });
+            sugerenciasPopup.getItems().add(item);
+        }
+
+        // Muestra el menú desplegable justo debajo del campo que se está escribiendo
+        if (!sugerenciasPopup.isShowing()) {
+            sugerenciasPopup.show(campoAsociado, javafx.geometry.Side.BOTTOM, 0, 0);
+        }
+    }
+
+    // =================================================================================
+    // 2. LÓGICA DEL BUSCADOR EN VIVO DE PROFESOR
+    // =================================================================================
+    @FXML
+    public void onBuscarProfesorClick() {
+        Dialog<Profesor> dialog = new Dialog<>();
+        dialog.setTitle("Buscar Profesor");
+        dialog.setHeaderText("Escriba para filtrar y haga doble clic para seleccionar");
+
+        ButtonType btnSeleccionar = new ButtonType("Seleccionar", ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(btnSeleccionar, ButtonType.CANCEL);
+
+        VBox vbox = new VBox(10);
+        TextField txtFiltro = new TextField();
+        txtFiltro.setPromptText("Buscar por nombre, apellido, DNI, o contacto...");
+
+        ListView<Profesor> listProfesores = new ListView<>();
+        List<Profesor> todosLosProfesores = profesorService.obtenerTodosActivos();
+        ObservableList<Profesor> items = FXCollections.observableArrayList(todosLosProfesores);
+        listProfesores.setItems(items);
+
+        // Formato visual de la lista
+        listProfesores.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(Profesor p, boolean empty) {
+                super.updateItem(p, empty);
+                if (empty || p == null) {
+                    setText(null);
+                } else {
+                    String dniStr = (p.getDni() != null) ? " | DNI: " + p.getDni() : "";
+                    setText(p.getApellido() + ", " + p.getNombre() + dniStr);
+                }
+            }
+        });
+
+        // Evento de filtrado en tiempo real
+        txtFiltro.textProperty().addListener((obs, oldV, newV) -> {
+            if (newV == null || newV.trim().isEmpty()) {
+                items.setAll(todosLosProfesores);
+            } else {
+                String f = newV.toLowerCase();
+                items.setAll(todosLosProfesores.stream()
+                        .filter(p -> p.getNombre().toLowerCase().contains(f) ||
+                                p.getApellido().toLowerCase().contains(f) ||
+                                (p.getDni() != null && p.getDni().contains(f)) ||
+                                (p.getEmailTelefono() != null && p.getEmailTelefono().toLowerCase().contains(f)))
+                        .toList());
+            }
+        });
+
+        // Doble clic para seleccionar rápido
+        listProfesores.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && listProfesores.getSelectionModel().getSelectedItem() != null) {
+                dialog.setResult(listProfesores.getSelectionModel().getSelectedItem());
+                dialog.close();
+            }
+        });
+
+        vbox.getChildren().addAll(txtFiltro, listProfesores);
+        dialog.getDialogPane().setContent(vbox);
+
+        // Habilitar botón de "Seleccionar" solo si hay algo seleccionado
+        Node btnSelNode = dialog.getDialogPane().lookupButton(btnSeleccionar);
+        btnSelNode.setDisable(true);
+        listProfesores.getSelectionModel().selectedItemProperty().addListener((obs, oldS, newS) -> {
+            btnSelNode.setDisable(newS == null);
+        });
+
+        dialog.setResultConverter(btn -> {
+            if (btn == btnSeleccionar) {
+                return listProfesores.getSelectionModel().getSelectedItem();
+            }
+            return null;
+        });
+
+        // Acción al confirmar el diálogo
+        dialog.showAndWait().ifPresent(profesor -> {
+            this.profesorSeleccionado = profesor;
+            txtProfesorSeleccionado.setText(profesor.getApellido() + ", " + profesor.getNombre());
+        });
+    }
+
+    // =================================================================================
+    // 3. LÓGICA DE AGREGAR NUEVO PROFESOR
+    // =================================================================================
     @FXML
     public void onAgregarProfesorClick() {
-        // 1. Crear el cuadro de diálogo
         Dialog<Profesor> dialog = new Dialog<>();
         dialog.setTitle("Nuevo Profesor");
         dialog.setHeaderText("Ingrese los datos del nuevo profesor");
 
-        // 2. Configurar los botones del diálogo (Guardar y Cancelar)
         ButtonType btnGuardar = new ButtonType("Guardar", ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, ButtonType.CANCEL);
 
-        // 3. Crear el formulario en una grilla (GridPane)
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
         TextField txtDni = new TextField();
-        txtDni.setPromptText("DNI");
+        txtDni.setPromptText("DNI (Opcional)");
         TextField txtNombre = new TextField();
-        txtNombre.setPromptText("Nombre");
         TextField txtApellido = new TextField();
-        txtApellido.setPromptText("Apellido");
         TextField txtContacto = new TextField();
-        txtContacto.setPromptText("Email o Tel. (Opcional)");
 
         grid.add(new Label("DNI:"), 0, 0);
         grid.add(txtDni, 1, 0);
@@ -99,20 +226,17 @@ public class NuevoPrestamoController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // 4. Validar que los campos obligatorios no estén vacíos para habilitar "Guardar"
         Node guardarButton = dialog.getDialogPane().lookupButton(btnGuardar);
-        guardarButton.setDisable(true); // Deshabilitado por defecto
+        guardarButton.setDisable(true);
 
         ChangeListener<String> validador = (observable, oldValue, newValue) -> {
             boolean invalido = txtNombre.getText().trim().isEmpty() ||
                     txtApellido.getText().trim().isEmpty();
             guardarButton.setDisable(invalido);
         };
-
         txtNombre.textProperty().addListener(validador);
         txtApellido.textProperty().addListener(validador);
 
-        // 5. Convertir el resultado del formulario a un objeto Profesor
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == btnGuardar) {
                 return Profesor.builder()
@@ -126,30 +250,25 @@ public class NuevoPrestamoController {
             return null;
         });
 
-        // 6. Mostrar el diálogo y guardar en BD si el usuario confirma
         dialog.showAndWait().ifPresent(nuevoProfesor -> {
             try {
-                // Usamos el servicio que ya valida si el DNI está duplicado
                 Profesor guardado = profesorService.guardar(nuevoProfesor);
-
-                // Recargamos el ComboBox para que aparezca
-                cargarProfesores();
-
-                // Lo seleccionamos automáticamente
-                cmbProfesor.setValue(guardado);
-
-                mostrarMensajeExito("Profesor agregado y seleccionado exitosamente.");
+                this.profesorSeleccionado = guardado;
+                txtProfesorSeleccionado.setText(guardado.getApellido() + ", " + guardado.getNombre());
+                mostrarMensajeExito("Profesor agregado y seleccionado.");
             } catch (Exception e) {
                 mostrarMensajeError("Error al guardar profesor: " + e.getMessage());
             }
         });
     }
 
+    // =================================================================================
+    // 4. REGISTRO DEL PRÉSTAMO
+    // =================================================================================
     @FXML
     public void onRegistrarPrestamoClick() {
         try {
-            Profesor profesor = cmbProfesor.getValue();
-            if (profesor == null || txtTituloLibro.getText().isBlank()) {
+            if (profesorSeleccionado == null || txtTituloLibro.getText().isBlank()) {
                 mostrarMensajeError("Debe seleccionar un Profesor e ingresar el Título del libro.");
                 return;
             }
@@ -160,11 +279,10 @@ public class NuevoPrestamoController {
                     .autor(txtAutorLibro.getText().trim())
                     .build();
 
-            // 2. REEMPLAZA el usuario en duro por la búsqueda dinámica
             Long usuarioLogueadoId = usuarioService.obtenerUsuarioPorDefecto().getId();
 
             prestamoService.registrarPrestamo(
-                    profesor.getId(),
+                    profesorSeleccionado.getId(),
                     usuarioLogueadoId,
                     libroIngresado,
                     dpFechaVencimiento.getValue(),
@@ -193,7 +311,8 @@ public class NuevoPrestamoController {
     }
 
     private void limpiarFormulario() {
-        cmbProfesor.getSelectionModel().clearSelection();
+        profesorSeleccionado = null;
+        txtProfesorSeleccionado.clear();
         txtCodigoLibro.clear();
         txtTituloLibro.clear();
         txtAutorLibro.clear();
