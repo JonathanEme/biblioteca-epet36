@@ -1,20 +1,34 @@
 package com.epet36.biblioteca.service;
 
+import com.epet36.biblioteca.model.OutboxEvent;
 import com.epet36.biblioteca.model.Profesor;
+import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.epet36.biblioteca.repository.ProfesorRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ProfesorService {
 
     private final ProfesorRepository profesorRepository;
+    private final OutboxEventRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
-    public Profesor buscarPorId(Long id) {
+    // CAMBIO: id ahora es String (UUID)
+    public Profesor buscarPorId(String id) {
         return profesorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Profesor no encontrado con ID: " + id));
+    }
+
+    // Método auxiliar para detectar si es un profesor nuevo o una edición
+    public Optional<Profesor> buscarPorIdOpcional(String id) {
+        return profesorRepository.findById(id);
     }
 
     public Profesor buscarPorDni(String dni) {
@@ -28,6 +42,12 @@ public class ProfesorService {
 
     @Transactional
     public Profesor guardar(Profesor profesor) {
+        boolean esNuevo = (profesor.getId() == null || buscarPorIdOpcional(profesor.getId()).isEmpty());
+
+        if (esNuevo && profesor.getId() == null) {
+            profesor.setId(UUID.randomUUID().toString()); // Aseguramos el UUID
+        }
+
         // 1. Validar unicidad de Nombre y Apellido
         var existentePorNombre = profesorRepository.findByNombreIgnoreCaseAndApellidoIgnoreCase(profesor.getNombre(), profesor.getApellido());
         if (existentePorNombre.isPresent() && !existentePorNombre.get().getId().equals(profesor.getId())) {
@@ -47,13 +67,42 @@ public class ProfesorService {
             }
         }
 
-        return profesorRepository.save(profesor);
+        Profesor profesorGuardado = profesorRepository.save(profesor);
+
+        // --- REGISTRAMOS EL EVENTO OUTBOX ---
+        registrarEventoOutbox(profesorGuardado, esNuevo ? "INSERT" : "UPDATE");
+
+        return profesorGuardado;
     }
 
     @Transactional
-    public void desactivar(Long id) {
+    // CAMBIO: id ahora es String (UUID)
+    public void desactivar(String id) {
         Profesor profesor = buscarPorId(id);
         profesor.setActivo(false);
-        profesorRepository.save(profesor);
+        Profesor profesorGuardado = profesorRepository.save(profesor);
+
+        // --- REGISTRAMOS EL EVENTO OUTBOX ---
+        // Desactivar es básicamente un UPDATE del campo 'activo' a false
+        registrarEventoOutbox(profesorGuardado, "UPDATE");
+    }
+
+    // --- MÉTODO AUXILIAR PARA EL OUTBOX ---
+    private void registrarEventoOutbox(Profesor profesor, String operacion) {
+        try {
+            String jsonPayload = objectMapper.writeValueAsString(profesor);
+
+            OutboxEvent evento = OutboxEvent.builder()
+                    .aggregateType("Profesor")
+                    .aggregateId(profesor.getId())
+                    .operation(operacion)
+                    .payload(jsonPayload)
+                    .build();
+
+            outboxRepository.save(evento);
+        } catch (Exception e) {
+            // Si falla la serialización, se hace rollback y no se guarda en SQLite
+            throw new RuntimeException("Error al serializar el evento Outbox para el profesor: " + profesor.getNombre(), e);
+        }
     }
 }
