@@ -1,7 +1,9 @@
 package com.epet36.biblioteca.service;
 
 import com.epet36.biblioteca.model.*;
+import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.epet36.biblioteca.repository.PrestamoRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,21 +17,22 @@ import java.util.List;
 public class PrestamoService {
 
     private final PrestamoRepository prestamoRepository;
+    private final OutboxEventRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
-    // Inyectamos Servicios, NO Repositorios ajenos
     private final ProfesorService profesorService;
     private final LibroService libroService;
     private final UsuarioService usuarioService;
     private final AuditoriaService auditoriaService;
 
-    // Actualizamos los parámetros
     @Transactional
-    public Prestamo registrarPrestamo(Long profesorId, Long usuarioId, Libro libroIngresado, LocalDate fechaVencimiento, String materia, int cantidad) {
+    public Prestamo registrarPrestamo(String profesorId, String usuarioId, Libro libroIngresado, LocalDate fechaVencimiento, String materia, int cantidad) {
 
         Profesor profesor = profesorService.buscarPorId(profesorId);
         Usuario usuario = usuarioService.obtenerUsuarioPorDefecto();
 
         // PASO CLAVE: Le pasamos la cantidad al LibroService
+        // Nota: Como LibroService también implementa Outbox, esto generará su propio evento para Turso.
         Libro libroFinal = libroService.obtenerOCrearLibroParaPrestamo(libroIngresado, cantidad);
 
         // Descontamos la cantidad prestada (ahora el resultado siempre será >= 0)
@@ -45,7 +48,7 @@ public class PrestamoService {
 
         PrestamoDetalle detalle = PrestamoDetalle.builder()
                 .libro(libroFinal)
-                .cantidad(cantidad) // Guardamos la cantidad prestada
+                .cantidad(cantidad)
                 .cantidadDevuelta(0)
                 .build();
         prestamo.addDetalle(detalle);
@@ -54,6 +57,9 @@ public class PrestamoService {
 
         auditoriaService.registrar("PRESTAR", "Prestamo", guardado.getId(), usuario,
                 "Préstamo de " + cantidad + " libro(s) a profesor: " + profesor.getApellido() + " para materia: " + materia);
+
+        // --- REGISTRAMOS EL EVENTO OUTBOX ---
+        registrarEventoOutbox(guardado, "INSERT");
 
         return guardado;
     }
@@ -67,7 +73,8 @@ public class PrestamoService {
     }
 
     @Transactional
-    public Prestamo registrarDevolucion(Long prestamoId, Long usuarioId, int cantidadADevolver) {
+    // CAMBIO: prestamoId y usuarioId ahora son String (UUID)
+    public Prestamo registrarDevolucion(String prestamoId, String usuarioId, int cantidadADevolver) {
         Usuario usuario = usuarioService.buscarPorId(usuarioId);
 
         Prestamo prestamo = prestamoRepository.findById(prestamoId)
@@ -77,7 +84,7 @@ public class PrestamoService {
             throw new IllegalStateException("El préstamo ya se encuentra completamente devuelto.");
         }
 
-        PrestamoDetalle detalle = prestamo.getDetalles().get(0); // Para el MVP asumimos 1 libro por préstamo
+        PrestamoDetalle detalle = prestamo.getDetalles().get(0);
         int devueltosActuales = detalle.getCantidadDevuelta() == null ? 0 : detalle.getCantidadDevuelta();
         int cantidadPendiente = detalle.getCantidad() - devueltosActuales;
 
@@ -99,11 +106,33 @@ public class PrestamoService {
                     "Devolución TOTAL completada. (" + detalle.getLibro().getTitulo() + ")");
         } else {
             prestamo.setEstado("PARCIAL");
-            // No se pone fecha_devolucion porque aún quedan libros afuera
             auditoriaService.registrar("DEVOLVER_PARCIAL", "Prestamo", prestamo.getId(), usuario,
                     "Devolución PARCIAL de " + cantidadADevolver + " libro(s). (" + detalle.getLibro().getTitulo() + ")");
         }
 
-        return prestamoRepository.save(prestamo);
+        Prestamo prestamoGuardado = prestamoRepository.save(prestamo);
+
+        // --- REGISTRAMOS EL EVENTO OUTBOX ---
+        registrarEventoOutbox(prestamoGuardado, "UPDATE");
+
+        return prestamoGuardado;
+    }
+
+    // --- MÉTODO AUXILIAR PARA EL OUTBOX ---
+    private void registrarEventoOutbox(Prestamo prestamo, String operacion) {
+        try {
+            String jsonPayload = objectMapper.writeValueAsString(prestamo);
+
+            OutboxEvent evento = OutboxEvent.builder()
+                    .aggregateType("Prestamo")
+                    .aggregateId(prestamo.getId())
+                    .operation(operacion)
+                    .payload(jsonPayload)
+                    .build();
+
+            outboxRepository.save(evento);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al serializar el evento Outbox para el préstamo ID: " + prestamo.getId(), e);
+        }
     }
 }

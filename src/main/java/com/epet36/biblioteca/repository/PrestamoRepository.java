@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface PrestamoRepository extends JpaRepository<Prestamo, Long> {
+public interface PrestamoRepository extends JpaRepository<Prestamo, String> {
 
     // Buscamos los Activos y los Parciales
     @Query("SELECT DISTINCT p FROM Prestamo p " +
