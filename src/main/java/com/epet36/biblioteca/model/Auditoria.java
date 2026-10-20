@@ -1,10 +1,12 @@
 package com.epet36.biblioteca.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "auditoria")
@@ -13,9 +15,11 @@ import java.time.LocalDateTime;
 public class Auditoria {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Builder.Default
+    private String id = UUID.randomUUID().toString();
 
+    // Blindamos la conversión a JSON evitando los proxies de Hibernate
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
@@ -26,8 +30,9 @@ public class Auditoria {
     @Column(nullable = false)
     private String entidad; // Libro, Profesor, Prestamo
 
+    // CAMBIO VITAL: Ahora guarda UUIDs de las otras entidades, por ende debe ser String
     @Column(name = "entidad_id")
-    private Long entidadId;
+    private String entidadId;
 
     @CreationTimestamp
     @Column(updatable = false)
