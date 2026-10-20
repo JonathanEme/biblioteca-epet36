@@ -9,12 +9,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.List;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -32,6 +32,11 @@ public class TursoRelayService {
 
     private static final int MAX_INTENTOS = 5;
 
+    // Cliente HTTP nativo de Java 11+
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+
     @Scheduled(fixedDelay = 30000)
     public void procesarEventosOutbox() {
         if (tursoUrl == null || tursoUrl.isBlank() || tursoToken == null || tursoToken.isBlank()) {
@@ -43,66 +48,63 @@ public class TursoRelayService {
             return;
         }
 
-        String connectionString = "jdbc:libsql://" + tursoUrl + "?authToken=" + tursoToken;
+        try {
+            // 1. Verificamos/creamos las tablas en Turso mediante HTTP
+            inicializarEsquemaTurso();
 
-        try (Connection conn = DriverManager.getConnection(connectionString)) {
-            conn.setAutoCommit(false);
-
-            // 1. Aseguramos la existencia de las tablas en Turso antes de escribir
-            inicializarEsquemaTurso(conn);
-
-            // 2. Procesamos el lote de eventos pendientes
+            // 2. Despachamos los eventos pendientes
             for (OutboxEvent evento : eventosPendientes) {
                 if (evento.getIntentos() >= MAX_INTENTOS) {
                     continue;
                 }
 
                 try {
-                    despacharEvento(conn, evento);
-                    outboxRepository.delete(evento); // Se elimina localmente al confirmar en Turso
+                    despacharEvento(evento);
+                    outboxRepository.delete(evento); // Eliminación local tras confirmación de Turso
                 } catch (Exception e) {
-                    conn.rollback();
                     log.error("Fallo al procesar evento Outbox ID {}: {}", evento.getId(), e.getMessage());
 
                     evento.setIntentos(evento.getIntentos() + 1);
                     evento.setUltimoError(e.getMessage());
                     outboxRepository.save(evento);
-                    return; // Interrumpe para reintentar en el próximo ciclo manteniendo el orden
+                    return; // Interrumpe para reintentar en el próximo ciclo
                 }
             }
-            conn.commit();
-            log.info("Sincronización Outbox completada con éxito.");
+            log.info("Sincronización Outbox completada con éxito en Turso.");
 
-        } catch (SQLException e) {
-            log.warn("Turso inalcanzable. Se reintentará en el próximo ciclo. Detalle: {}", e.getMessage());
+        } catch (Exception e) {
+            log.warn("Turso inalcanzable. Se reintentará en el próximo ciclo. Detalle: {}",
+                    e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
         }
     }
 
-    private void inicializarEsquemaTurso(Connection conn) throws SQLException {
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, username TEXT, password_hash TEXT, nombre TEXT, rol TEXT, activo INTEGER);
-                CREATE TABLE IF NOT EXISTS profesores (id TEXT PRIMARY KEY, dni TEXT, nombre TEXT, apellido TEXT, email_telefono TEXT, activo INTEGER);
-                CREATE TABLE IF NOT EXISTS libros (id TEXT PRIMARY KEY, codigo TEXT, isbn TEXT, titulo TEXT, autor TEXT, editorial TEXT, categoria TEXT, anio_publicacion INTEGER, cantidad_total INTEGER, disponibles INTEGER, activo INTEGER);
-                CREATE TABLE IF NOT EXISTS prestamos (id TEXT PRIMARY KEY, profesor_id TEXT, usuario_id TEXT, fecha_vencimiento TEXT, fecha_devolucion TEXT, materia TEXT, estado TEXT);
-                CREATE TABLE IF NOT EXISTS prestamo_detalle (id TEXT PRIMARY KEY, prestamo_id TEXT, libro_id TEXT, cantidad INTEGER, cantidad_devuelta INTEGER);
-                CREATE TABLE IF NOT EXISTS auditoria (id TEXT PRIMARY KEY, usuario_id TEXT, accion TEXT, entidad TEXT, entidad_id TEXT, detalle TEXT);
-            """);
+    private void inicializarEsquemaTurso() throws Exception {
+        List<String> ddlStatements = List.of(
+                "CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, username TEXT, password_hash TEXT, nombre TEXT, rol TEXT, activo INTEGER)",
+                "CREATE TABLE IF NOT EXISTS profesores (id TEXT PRIMARY KEY, dni TEXT, nombre TEXT, apellido TEXT, email_telefono TEXT, activo INTEGER)",
+                "CREATE TABLE IF NOT EXISTS libros (id TEXT PRIMARY KEY, codigo TEXT, isbn TEXT, titulo TEXT, autor TEXT, editorial TEXT, categoria TEXT, anio_publicacion INTEGER, cantidad_total INTEGER, disponibles INTEGER, activo INTEGER)",
+                "CREATE TABLE IF NOT EXISTS prestamos (id TEXT PRIMARY KEY, profesor_id TEXT, usuario_id TEXT, fecha_vencimiento TEXT, fecha_devolucion TEXT, materia TEXT, estado TEXT)",
+                "CREATE TABLE IF NOT EXISTS prestamo_detalle (id TEXT PRIMARY KEY, prestamo_id TEXT, libro_id TEXT, cantidad INTEGER, cantidad_devuelta INTEGER)",
+                "CREATE TABLE IF NOT EXISTS auditoria (id TEXT PRIMARY KEY, usuario_id TEXT, accion TEXT, entidad TEXT, entidad_id TEXT, detalle TEXT)"
+        );
+
+        for (String sql : ddlStatements) {
+            ejecutarSqlEnTurso(sql, Collections.emptyList());
         }
     }
 
-    private void despacharEvento(Connection conn, OutboxEvent evento) throws Exception {
+    private void despacharEvento(OutboxEvent evento) throws Exception {
         switch (evento.getAggregateType()) {
-            case "Libro" -> sincronizarLibro(conn, objectMapper.readValue(evento.getPayload(), Libro.class));
-            case "Profesor" -> sincronizarProfesor(conn, objectMapper.readValue(evento.getPayload(), Profesor.class));
-            case "Usuario" -> sincronizarUsuario(conn, objectMapper.readValue(evento.getPayload(), Usuario.class));
-            case "Prestamo" -> sincronizarPrestamo(conn, objectMapper.readValue(evento.getPayload(), Prestamo.class));
-            case "Auditoria" -> sincronizarAuditoria(conn, objectMapper.readValue(evento.getPayload(), Auditoria.class));
+            case "Libro" -> sincronizarLibro(objectMapper.readValue(evento.getPayload(), Libro.class));
+            case "Profesor" -> sincronizarProfesor(objectMapper.readValue(evento.getPayload(), Profesor.class));
+            case "Usuario" -> sincronizarUsuario(objectMapper.readValue(evento.getPayload(), Usuario.class));
+            case "Prestamo" -> sincronizarPrestamo(objectMapper.readValue(evento.getPayload(), Prestamo.class));
+            case "Auditoria" -> sincronizarAuditoria(objectMapper.readValue(evento.getPayload(), Auditoria.class));
             default -> throw new IllegalArgumentException("Tipo de entidad no soportado: " + evento.getAggregateType());
         }
     }
 
-    private void sincronizarLibro(Connection conn, Libro libro) throws SQLException {
+    private void sincronizarLibro(Libro libro) throws Exception {
         String sql = """
             INSERT INTO libros (id, codigo, isbn, titulo, autor, editorial, categoria, anio_publicacion, cantidad_total, disponibles, activo)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -111,23 +113,16 @@ public class TursoRelayService {
             editorial=excluded.editorial, categoria=excluded.categoria, anio_publicacion=excluded.anio_publicacion,
             cantidad_total=excluded.cantidad_total, disponibles=excluded.disponibles, activo=excluded.activo
         """;
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, libro.getId());
-            pstmt.setString(2, libro.getCodigo());
-            pstmt.setString(3, libro.getIsbn());
-            pstmt.setString(4, libro.getTitulo());
-            pstmt.setString(5, libro.getAutor());
-            pstmt.setString(6, libro.getEditorial());
-            pstmt.setString(7, libro.getCategoria());
-            if (libro.getAnio() != null) pstmt.setInt(8, libro.getAnio()); else pstmt.setNull(8, java.sql.Types.INTEGER);
-            pstmt.setInt(9, libro.getCantidadTotal() != null ? libro.getCantidadTotal() : 1);
-            pstmt.setInt(10, libro.getDisponibles() != null ? libro.getDisponibles() : 1);
-            pstmt.setBoolean(11, libro.getActivo() != null ? libro.getActivo() : true);
-            pstmt.executeUpdate();
-        }
+        List<Object> args = List.of(
+                val(libro.getId()), val(libro.getCodigo()), val(libro.getIsbn()), val(libro.getTitulo()),
+                val(libro.getAutor()), val(libro.getEditorial()), val(libro.getCategoria()),
+                val(libro.getAnio()), val(libro.getCantidadTotal()), val(libro.getDisponibles()),
+                val(libro.getActivo() != null && libro.getActivo() ? 1 : 0)
+        );
+        ejecutarSqlEnTurso(sql, args);
     }
 
-    private void sincronizarProfesor(Connection conn, Profesor profesor) throws SQLException {
+    private void sincronizarProfesor(Profesor profesor) throws Exception {
         String sql = """
             INSERT INTO profesores (id, dni, nombre, apellido, email_telefono, activo)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -135,18 +130,15 @@ public class TursoRelayService {
             dni=excluded.dni, nombre=excluded.nombre, apellido=excluded.apellido,
             email_telefono=excluded.email_telefono, activo=excluded.activo
         """;
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, profesor.getId());
-            pstmt.setString(2, profesor.getDni());
-            pstmt.setString(3, profesor.getNombre());
-            pstmt.setString(4, profesor.getApellido());
-            pstmt.setString(5, profesor.getEmailTelefono());
-            pstmt.setBoolean(6, profesor.getActivo() != null ? profesor.getActivo() : true);
-            pstmt.executeUpdate();
-        }
+        List<Object> args = List.of(
+                val(profesor.getId()), val(profesor.getDni()), val(profesor.getNombre()),
+                val(profesor.getApellido()), val(profesor.getEmailTelefono()),
+                val(profesor.getActivo() != null && profesor.getActivo() ? 1 : 0)
+        );
+        ejecutarSqlEnTurso(sql, args);
     }
 
-    private void sincronizarUsuario(Connection conn, Usuario usuario) throws SQLException {
+    private void sincronizarUsuario(Usuario usuario) throws Exception {
         String sql = """
             INSERT INTO usuarios (id, username, password_hash, nombre, rol, activo)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -154,34 +146,31 @@ public class TursoRelayService {
             username=excluded.username, password_hash=excluded.password_hash,
             nombre=excluded.nombre, rol=excluded.rol, activo=excluded.activo
         """;
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, usuario.getId());
-            pstmt.setString(2, usuario.getUsername());
-            pstmt.setString(3, usuario.getPasswordHash());
-            pstmt.setString(4, usuario.getNombre());
-            pstmt.setString(5, usuario.getRol());
-            pstmt.setBoolean(6, usuario.getActivo() != null ? usuario.getActivo() : true);
-            pstmt.executeUpdate();
-        }
+        List<Object> args = List.of(
+                val(usuario.getId()), val(usuario.getUsername()), val(usuario.getPasswordHash()),
+                val(usuario.getNombre()), val(usuario.getRol()),
+                val(usuario.getActivo() != null && usuario.getActivo() ? 1 : 0)
+        );
+        ejecutarSqlEnTurso(sql, args);
     }
 
-    private void sincronizarPrestamo(Connection conn, Prestamo prestamo) throws SQLException {
+    private void sincronizarPrestamo(Prestamo prestamo) throws Exception {
         String sqlPrestamo = """
             INSERT INTO prestamos (id, profesor_id, usuario_id, fecha_vencimiento, fecha_devolucion, materia, estado)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
             fecha_devolucion=excluded.fecha_devolucion, estado=excluded.estado
         """;
-        try (PreparedStatement pstmt = conn.prepareStatement(sqlPrestamo)) {
-            pstmt.setString(1, prestamo.getId());
-            pstmt.setString(2, prestamo.getProfesor() != null ? prestamo.getProfesor().getId() : null);
-            pstmt.setString(3, prestamo.getUsuarioAlta() != null ? prestamo.getUsuarioAlta().getId() : null);
-            pstmt.setString(4, prestamo.getFechaVencimiento() != null ? prestamo.getFechaVencimiento().toString() : null);
-            pstmt.setString(5, prestamo.getFechaDevolucion() != null ? prestamo.getFechaDevolucion().toString() : null);
-            pstmt.setString(6, prestamo.getMateria());
-            pstmt.setString(7, prestamo.getEstado());
-            pstmt.executeUpdate();
-        }
+        List<Object> argsPrestamo = List.of(
+                val(prestamo.getId()),
+                val(prestamo.getProfesor() != null ? prestamo.getProfesor().getId() : null),
+                val(prestamo.getUsuarioAlta() != null ? prestamo.getUsuarioAlta().getId() : null),
+                val(prestamo.getFechaVencimiento() != null ? prestamo.getFechaVencimiento().toString() : null),
+                val(prestamo.getFechaDevolucion() != null ? prestamo.getFechaDevolucion().toString() : null),
+                val(prestamo.getMateria()),
+                val(prestamo.getEstado())
+        );
+        ejecutarSqlEnTurso(sqlPrestamo, argsPrestamo);
 
         if (prestamo.getDetalles() != null) {
             String sqlDetalle = """
@@ -191,32 +180,84 @@ public class TursoRelayService {
                 cantidad_devuelta=excluded.cantidad_devuelta
             """;
             for (PrestamoDetalle detalle : prestamo.getDetalles()) {
-                try (PreparedStatement pstmt = conn.prepareStatement(sqlDetalle)) {
-                    pstmt.setString(1, detalle.getId());
-                    pstmt.setString(2, prestamo.getId());
-                    pstmt.setString(3, detalle.getLibro() != null ? detalle.getLibro().getId() : null);
-                    pstmt.setInt(4, detalle.getCantidad() != null ? detalle.getCantidad() : 1);
-                    pstmt.setInt(5, detalle.getCantidadDevuelta() != null ? detalle.getCantidadDevuelta() : 0);
-                    pstmt.executeUpdate();
-                }
+                List<Object> argsDetalle = List.of(
+                        val(detalle.getId()), val(prestamo.getId()),
+                        val(detalle.getLibro() != null ? detalle.getLibro().getId() : null),
+                        val(detalle.getCantidad()), val(detalle.getCantidadDevuelta())
+                );
+                ejecutarSqlEnTurso(sqlDetalle, argsDetalle);
             }
         }
     }
 
-    private void sincronizarAuditoria(Connection conn, Auditoria auditoria) throws SQLException {
+    private void sincronizarAuditoria(Auditoria auditoria) throws Exception {
         String sql = """
             INSERT INTO auditoria (id, usuario_id, accion, entidad, entidad_id, detalle)
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO NOTHING
         """;
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, auditoria.getId());
-            pstmt.setString(2, auditoria.getUsuario() != null ? auditoria.getUsuario().getId() : null);
-            pstmt.setString(3, auditoria.getAccion());
-            pstmt.setString(4, auditoria.getEntidad());
-            pstmt.setString(5, auditoria.getEntidadId());
-            pstmt.setString(6, auditoria.getDetalle());
-            pstmt.executeUpdate();
+        List<Object> args = List.of(
+                val(auditoria.getId()),
+                val(auditoria.getUsuario() != null ? auditoria.getUsuario().getId() : null),
+                val(auditoria.getAccion()), val(auditoria.getEntidad()),
+                val(auditoria.getEntidadId()), val(auditoria.getDetalle())
+        );
+        ejecutarSqlEnTurso(sql, args);
+    }
+
+    private Object val(Object o) {
+        return o != null ? o : "null_value_marker";
+    }
+
+    /**
+     * Envía la consulta SQL formateada en JSON a la API REST Hrana v2 de Turso.
+     */
+    private void ejecutarSqlEnTurso(String sql, List<Object> args) throws Exception {
+        String hostLimpio = tursoUrl.replaceAll("^(jdbc:)?(libsql|https?)://", "").replaceAll("/.*$", "").trim();
+        String endpoint = "https://" + hostLimpio + "/v2/pipeline";
+
+        Map<String, Object> stmtMap = new LinkedHashMap<>();
+        stmtMap.put("sql", sql);
+
+        if (!args.isEmpty()) {
+            List<Map<String, Object>> formattedArgs = new ArrayList<>();
+            for (Object arg : args) {
+                Map<String, Object> argMap = new LinkedHashMap<>();
+                if ("null_value_marker".equals(arg)) {
+                    argMap.put("type", "null");
+                } else if (arg instanceof Integer || arg instanceof Long) {
+                    argMap.put("type", "integer");
+                    argMap.put("value", String.valueOf(arg));
+                } else {
+                    argMap.put("type", "text");
+                    argMap.put("value", String.valueOf(arg));
+                }
+                formattedArgs.add(argMap);
+            }
+            stmtMap.put("args", formattedArgs);
+        }
+
+        Map<String, Object> executeReq = Map.of("type", "execute", "stmt", stmtMap);
+        Map<String, Object> closeReq = Map.of("type", "close");
+        Map<String, Object> payload = Map.of("requests", List.of(executeReq, closeReq));
+
+        String jsonBody = objectMapper.writeValueAsString(payload);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + tursoToken.trim())
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Error HTTP " + response.statusCode() + " en Turso: " + response.body());
+        }
+
+        if (response.body().contains("\"type\":\"error\"")) {
+            throw new RuntimeException("Error SQL en Turso: " + response.body());
         }
     }
 }
