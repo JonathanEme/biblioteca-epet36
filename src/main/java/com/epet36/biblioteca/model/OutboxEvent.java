@@ -3,6 +3,7 @@ package com.epet36.biblioteca.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -16,14 +17,21 @@ public class OutboxEvent {
     @Builder.Default
     private String id = UUID.randomUUID().toString();
 
-    private String aggregateType; // Ejemplo: "Libro"
-    private String aggregateId;   // El UUID del libro afectado
+    private String aggregateType; // "Libro", "Profesor", "Usuario", "Prestamo", "Auditoria"
+    private String aggregateId;
     private String operation;     // "INSERT", "UPDATE", "DELETE"
 
-    @Lob // Para que SQLite permita guardar textos largos
-    private String payload;       // El JSON del libro con todos sus datos
+    @Lob
+    private String payload;
+
+    @Builder.Default
+    @Column(name = "intentos")
+    private Integer intentos = 0;
+
+    @Column(name = "ultimo_error")
+    private String ultimoError;
 
     @CreationTimestamp
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }
