@@ -4,22 +4,22 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.layout.BorderPane;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class MainController {
 
     @FXML
     private BorderPane rootPane;
 
     private final ApplicationContext applicationContext;
-
-    public MainController(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
-    }
 
     @FXML
     public void initialize() {
@@ -58,15 +58,14 @@ public class MainController {
     private void cargarVista(String fxmlPath) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-            // Fundamental: le decimos a este nuevo loader que use Spring
+            // Le indicamos al loader que resuelva los beans de los controladores mediante Spring
             loader.setControllerFactory(applicationContext::getBean);
             Parent vista = loader.load();
 
             // Reemplazamos el contenido central del BorderPane
             rootPane.setCenter(vista);
         } catch (IOException e) {
-            System.err.println("Error al cargar la vista: " + fxmlPath);
-            e.printStackTrace();
+            log.error("Error al cargar la vista FXML en la ruta: {}", fxmlPath, e);
         }
     }
 }

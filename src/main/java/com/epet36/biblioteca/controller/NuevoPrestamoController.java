@@ -279,7 +279,7 @@ public class NuevoPrestamoController {
                     .autor(txtAutorLibro.getText().trim())
                     .build();
 
-            Long usuarioLogueadoId = usuarioService.obtenerUsuarioPorDefecto().getId();
+            String usuarioLogueadoId = usuarioService.obtenerUsuarioPorDefecto().getId();
 
             prestamoService.registrarPrestamo(
                     profesorSeleccionado.getId(),

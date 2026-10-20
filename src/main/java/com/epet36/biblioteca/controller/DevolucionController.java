@@ -34,22 +34,16 @@ public class DevolucionController {
     @FXML private TableColumn<Prestamo, String> colCantidad;
     @FXML private TableColumn<Prestamo, String> colEstado;
 
-    private ObservableList<Prestamo> prestamosList = FXCollections.observableArrayList();
+    private final ObservableList<Prestamo> prestamosList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
         configurarTabla();
-        cargarTodosLosPrestamos(); // Cargamos todo al abrir
+        cargarTodosLosPrestamos();
 
-        // MAGIA DE JAVAFX: Escuchamos cada vez que el texto cambia
         txtBuscarDni.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue.trim().isEmpty()) {
-                // Si el usuario borra todo, recargamos la tabla completa
+            if (newValue == null || newValue.trim().isEmpty()) {
                 cargarTodosLosPrestamos();
-            } else {
-                // Opcional: Si quieres que busque en tiempo real mientras tipea,
-                // descomenta la línea de abajo. Si prefieres que presione el botón "Buscar", déjala comentada.
-                // onBuscarClick();
             }
         });
     }
@@ -61,62 +55,76 @@ public class DevolucionController {
             prestamosList.addAll(todos);
 
             lblProfesorNombre.setText("Mostrando el historial completo (" + todos.size() + " registros).");
-            lblMensaje.setText(""); // Limpiamos mensajes de error
+            lblMensaje.setText("");
         } catch (Exception e) {
             mostrarMensajeError("Error al cargar el historial: " + e.getMessage());
         }
     }
 
     private void configurarTabla() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
         colLibro.setCellValueFactory(cellData -> {
             Prestamo p = cellData.getValue();
-            if (!p.getDetalles().isEmpty()) {
-                return new SimpleStringProperty(p.getDetalles().get(0).getLibro().getTitulo());
+            if (p != null && p.getDetalles() != null && !p.getDetalles().isEmpty()) {
+                PrestamoDetalle d = p.getDetalles().get(0);
+                if (d != null && d.getLibro() != null && d.getLibro().getTitulo() != null) {
+                    return new SimpleStringProperty(d.getLibro().getTitulo());
+                }
             }
             return new SimpleStringProperty("Sin libro");
         });
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-        colFechaPrestamo.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getFechaPrestamo().format(formatter)));
-
-        colFechaVencimiento.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getFechaVencimiento().format(formatter)));
-
-        // Mostrar cantidad: "Devueltos / Totales"
-        colCantidad.setCellValueFactory(cellData -> {
+        colFechaPrestamo.setCellValueFactory(cellData -> {
             Prestamo p = cellData.getValue();
-            if (!p.getDetalles().isEmpty()) {
-                PrestamoDetalle d = p.getDetalles().get(0);
-                int devueltos = d.getCantidadDevuelta() == null ? 0 : d.getCantidadDevuelta();
-                return new SimpleStringProperty(devueltos + " / " + d.getCantidad());
+            if (p != null && p.getFechaPrestamo() != null) {
+                return new SimpleStringProperty(p.getFechaPrestamo().format(formatter));
             }
             return new SimpleStringProperty("-");
         });
 
-        // Mostrar estado y fecha si ya devolvió
+        colFechaVencimiento.setCellValueFactory(cellData -> {
+            Prestamo p = cellData.getValue();
+            if (p != null && p.getFechaVencimiento() != null) {
+                return new SimpleStringProperty(p.getFechaVencimiento().format(formatter));
+            }
+            return new SimpleStringProperty("-");
+        });
+
+        colCantidad.setCellValueFactory(cellData -> {
+            Prestamo p = cellData.getValue();
+            if (p != null && p.getDetalles() != null && !p.getDetalles().isEmpty()) {
+                PrestamoDetalle d = p.getDetalles().get(0);
+                int devueltos = d.getCantidadDevuelta() == null ? 0 : d.getCantidadDevuelta();
+                int total = d.getCantidad() == null ? 0 : d.getCantidad();
+                return new SimpleStringProperty(devueltos + " / " + total);
+            }
+            return new SimpleStringProperty("-");
+        });
+
         colEstado.setCellValueFactory(cellData -> {
             Prestamo p = cellData.getValue();
+            if (p == null) return new SimpleStringProperty("-");
+
             if ("DEVUELTO".equals(p.getEstado())) {
-                return new SimpleStringProperty("Devuelto (" + p.getFechaDevolucion().format(formatter) + ")");
+                String fDev = (p.getFechaDevolucion() != null) ? p.getFechaDevolucion().format(formatter) : "s/f";
+                return new SimpleStringProperty("Devuelto (" + fDev + ")");
             } else if ("PARCIAL".equals(p.getEstado())) {
                 return new SimpleStringProperty("Devolución Parcial");
             }
-            return new SimpleStringProperty(p.getEstado()); // Dirá "ACTIVO"
+            return new SimpleStringProperty(p.getEstado() != null ? p.getEstado() : "ACTIVO");
         });
 
-        // Colores en la tabla
-        tablaPrestamos.setRowFactory(tv -> new TableRow<Prestamo>() {
+        tablaPrestamos.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(Prestamo item, boolean empty) {
                 super.updateItem(item, empty);
                 if (item == null || empty) {
                     setStyle("");
                 } else if ("DEVUELTO".equals(item.getEstado())) {
-                    setStyle("-fx-background-color: #d4edda;"); // Verde éxito
+                    setStyle("-fx-background-color: #d4edda;");
                 } else if ("PARCIAL".equals(item.getEstado())) {
-                    setStyle("-fx-background-color: #fff3cd;"); // Amarillo advertencia
+                    setStyle("-fx-background-color: #fff3cd;");
                 } else {
                     setStyle("");
                 }
@@ -170,7 +178,6 @@ public class DevolucionController {
             int devueltosActuales = detalle.getCantidadDevuelta() == null ? 0 : detalle.getCantidadDevuelta();
             int cantidadPendiente = detalle.getCantidad() - devueltosActuales;
 
-            // Preguntamos cuántos libros devuelve ahora
             Dialog<Integer> dialog = new Dialog<>();
             dialog.setTitle("Registrar Devolución");
             dialog.setHeaderText("Devolución de: " + detalle.getLibro().getTitulo());
@@ -203,11 +210,12 @@ public class DevolucionController {
 
             dialog.showAndWait().ifPresent(cantidadADevolver -> {
                 try {
-                    Long usuarioLogueadoId = usuarioService.obtenerUsuarioPorDefecto().getId();
+                    // CAMBIO VITAL: usuarioLogueadoId ahora es String (UUID)
+                    String usuarioLogueadoId = usuarioService.obtenerUsuarioPorDefecto().getId();
                     prestamoService.registrarDevolucion(seleccionado.getId(), usuarioLogueadoId, cantidadADevolver);
 
                     mostrarMensajeExito("¡Devolución registrada con éxito!");
-                    onBuscarClick(); // Refresca la tabla para actualizar colores y cantidades
+                    onBuscarClick();
                 } catch (Exception e) {
                     mostrarMensajeError("Error al procesar: " + e.getMessage());
                 }

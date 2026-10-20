@@ -34,17 +34,18 @@ public class InventarioController {
     @FXML private Label lblDisponibles;
     @FXML private Label lblMensaje;
 
-    private Long libroSeleccionadoId = null;
-    private ObservableList<Libro> librosList = FXCollections.observableArrayList();
+    // CAMBIO VITAL: Ahora la referencia es String (UUID)
+    private String libroSeleccionadoId = null;
+    private final ObservableList<Libro> librosList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
         configurarTabla();
         cargarDatos("");
 
-        txtBuscar.textProperty().addListener((obs, oldV, newV) -> {
-            cargarDatos(newV.trim());
-        });
+        txtBuscar.textProperty().addListener((obs, oldV, newV) ->
+                cargarDatos(newV != null ? newV.trim() : "")
+        );
 
         tablaLibros.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldV, newV) -> seleccionarLibro(newV)
@@ -54,15 +55,26 @@ public class InventarioController {
     }
 
     private void configurarTabla() {
+        // Blindaje contra valores nulos en columnas
         colCodigo.setCellValueFactory(cell -> {
             String cod = cell.getValue().getCodigo();
-            return new SimpleStringProperty(cod != null ? cod : cell.getValue().getIsbn());
+            String isbn = cell.getValue().getIsbn();
+            if (cod != null && !cod.isBlank()) return new SimpleStringProperty(cod);
+            if (isbn != null && !isbn.isBlank()) return new SimpleStringProperty(isbn);
+            return new SimpleStringProperty("-");
         });
-        colTitulo.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getTitulo()));
-        colAutor.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getAutor()));
-        colStock.setCellValueFactory(cell ->
-                new SimpleStringProperty(cell.getValue().getDisponibles() + " / " + cell.getValue().getCantidadTotal())
-        );
+
+        colTitulo.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getTitulo() != null ? cell.getValue().getTitulo() : ""));
+
+        colAutor.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getAutor() != null ? cell.getValue().getAutor() : ""));
+
+        colStock.setCellValueFactory(cell -> {
+            int disp = cell.getValue().getDisponibles() != null ? cell.getValue().getDisponibles() : 0;
+            int total = cell.getValue().getCantidadTotal() != null ? cell.getValue().getCantidadTotal() : 0;
+            return new SimpleStringProperty(disp + " / " + total);
+        });
 
         tablaLibros.setItems(librosList);
     }
@@ -75,14 +87,18 @@ public class InventarioController {
 
     private void seleccionarLibro(Libro libro) {
         if (libro != null) {
-            libroSeleccionadoId = libro.getId();
-            txtCodigo.setText(libro.getCodigo());
-            txtIsbn.setText(libro.getIsbn());
-            txtTitulo.setText(libro.getTitulo());
-            txtAutor.setText(libro.getAutor());
-            txtCategoria.setText(libro.getCategoria());
-            spnCantidadTotal.getValueFactory().setValue(libro.getCantidadTotal());
-            lblDisponibles.setText("Disponibles actualmente: " + libro.getDisponibles());
+            libroSeleccionadoId = libro.getId(); // String UUID
+            txtCodigo.setText(libro.getCodigo() != null ? libro.getCodigo() : "");
+            txtIsbn.setText(libro.getIsbn() != null ? libro.getIsbn() : "");
+            txtTitulo.setText(libro.getTitulo() != null ? libro.getTitulo() : "");
+            txtAutor.setText(libro.getAutor() != null ? libro.getAutor() : "");
+            txtCategoria.setText(libro.getCategoria() != null ? libro.getCategoria() : "");
+
+            int total = libro.getCantidadTotal() != null ? libro.getCantidadTotal() : 1;
+            spnCantidadTotal.getValueFactory().setValue(total);
+
+            int disp = libro.getDisponibles() != null ? libro.getDisponibles() : 0;
+            lblDisponibles.setText("Disponibles actualmente: " + disp);
         }
     }
 
@@ -95,7 +111,7 @@ public class InventarioController {
             }
 
             Libro libro = Libro.builder()
-                    .id(libroSeleccionadoId)
+                    .id(libroSeleccionadoId) // Si es null, LibroService generará un UUID nuevo
                     .codigo(txtCodigo.getText().trim())
                     .isbn(txtIsbn.getText().trim())
                     .titulo(txtTitulo.getText().trim())
@@ -104,6 +120,7 @@ public class InventarioController {
                     .cantidadTotal(spnCantidadTotal.getValue())
                     .build();
 
+            // Invoca al servicio que actualiza SQLite y dispara el evento Outbox
             libroService.actualizarLibroMantenimiento(libro);
             mostrarMensajeExito("Libro guardado correctamente en el inventario.");
 
@@ -126,6 +143,7 @@ public class InventarioController {
         spnCantidadTotal.getValueFactory().setValue(1);
         lblDisponibles.setText("-");
         tablaLibros.getSelectionModel().clearSelection();
+        lblMensaje.setText("");
     }
 
     private void mostrarMensajeExito(String mensaje) {

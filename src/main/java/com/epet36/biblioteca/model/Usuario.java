@@ -15,7 +15,7 @@ public class Usuario {
 
     @Id
     @Builder.Default
-    private String id = UUID.randomUUID().toString()
+    private String id = UUID.randomUUID().toString();
 
     @Column(unique = true, nullable = false)
     private String username;
