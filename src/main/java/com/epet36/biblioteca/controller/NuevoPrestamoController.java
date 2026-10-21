@@ -33,12 +33,13 @@ public class NuevoPrestamoController {
 
     // UI Profesor
     @FXML private TextField txtProfesorSeleccionado;
-    private Profesor profesorSeleccionado = null; // Guardamos la referencia aquí
+    private Profesor profesorSeleccionado = null;
 
     // UI Libro
     @FXML private TextField txtCodigoLibro;
     @FXML private TextField txtTituloLibro;
     @FXML private TextField txtAutorLibro;
+    private Libro libroSeleccionado = null; // <-- Guardamos la referencia del libro seleccionado
 
     // UI Préstamo
     @FXML private TextField txtMateria;
@@ -92,11 +93,15 @@ public class NuevoPrestamoController {
         }
 
         for (Libro libro : sugerencias) {
-            String codigoTexto = (libro.getCodigo() != null) ? libro.getCodigo() : (libro.getIsbn() != null ? libro.getIsbn() : "");
+            String codigoTexto = (libro.getCodigo() != null && !libro.getCodigo().isBlank())
+                    ? libro.getCodigo()
+                    : (libro.getIsbn() != null ? libro.getIsbn() : "");
+
             MenuItem item = new MenuItem(libro.getTitulo() + " - " + libro.getAutor() + " (" + codigoTexto + ")");
 
-            // Si el usuario hace clic en la sugerencia, autocompletamos los campos
+            // Al hacer clic guardamos la instancia de Libro con su UUID de la DB
             item.setOnAction(e -> {
+                this.libroSeleccionado = libro; // <-- Guardamos la entidad con UUID
                 txtCodigoLibro.setText(codigoTexto);
                 txtTituloLibro.setText(libro.getTitulo());
                 txtAutorLibro.setText(libro.getAutor());
@@ -104,7 +109,6 @@ public class NuevoPrestamoController {
             sugerenciasPopup.getItems().add(item);
         }
 
-        // Muestra el menú desplegable justo debajo del campo que se está escribiendo
         if (!sugerenciasPopup.isShowing()) {
             sugerenciasPopup.show(campoAsociado, javafx.geometry.Side.BOTTOM, 0, 0);
         }
@@ -131,7 +135,6 @@ public class NuevoPrestamoController {
         ObservableList<Profesor> items = FXCollections.observableArrayList(todosLosProfesores);
         listProfesores.setItems(items);
 
-        // Formato visual de la lista
         listProfesores.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Profesor p, boolean empty) {
@@ -145,7 +148,6 @@ public class NuevoPrestamoController {
             }
         });
 
-        // Evento de filtrado en tiempo real
         txtFiltro.textProperty().addListener((obs, oldV, newV) -> {
             if (newV == null || newV.trim().isEmpty()) {
                 items.setAll(todosLosProfesores);
@@ -160,7 +162,6 @@ public class NuevoPrestamoController {
             }
         });
 
-        // Doble clic para seleccionar rápido
         listProfesores.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2 && listProfesores.getSelectionModel().getSelectedItem() != null) {
                 dialog.setResult(listProfesores.getSelectionModel().getSelectedItem());
@@ -171,7 +172,6 @@ public class NuevoPrestamoController {
         vbox.getChildren().addAll(txtFiltro, listProfesores);
         dialog.getDialogPane().setContent(vbox);
 
-        // Habilitar botón de "Seleccionar" solo si hay algo seleccionado
         Node btnSelNode = dialog.getDialogPane().lookupButton(btnSeleccionar);
         btnSelNode.setDisable(true);
         listProfesores.getSelectionModel().selectedItemProperty().addListener((obs, oldS, newS) -> {
@@ -185,7 +185,6 @@ public class NuevoPrestamoController {
             return null;
         });
 
-        // Acción al confirmar el diálogo
         dialog.showAndWait().ifPresent(profesor -> {
             this.profesorSeleccionado = profesor;
             txtProfesorSeleccionado.setText(profesor.getApellido() + ", " + profesor.getNombre());
@@ -268,23 +267,30 @@ public class NuevoPrestamoController {
     @FXML
     public void onRegistrarPrestamoClick() {
         try {
-            if (profesorSeleccionado == null || txtTituloLibro.getText().isBlank()) {
-                mostrarMensajeError("Debe seleccionar un Profesor e ingresar el Título del libro.");
+            if (profesorSeleccionado == null) {
+                mostrarMensajeError("Debe seleccionar un Profesor.");
                 return;
             }
 
-            Libro libroIngresado = Libro.builder()
+            // Si el usuario no seleccionó de la sugerencia pero completó el formulario,
+            // armamos la instancia
+            Libro libroAEnviar = (libroSeleccionado != null) ? libroSeleccionado : Libro.builder()
                     .codigo(txtCodigoLibro.getText().trim())
                     .titulo(txtTituloLibro.getText().trim())
                     .autor(txtAutorLibro.getText().trim())
                     .build();
+
+            if (libroAEnviar.getTitulo() == null || libroAEnviar.getTitulo().isBlank()) {
+                mostrarMensajeError("Debe seleccionar o ingresar el Título del libro.");
+                return;
+            }
 
             String usuarioLogueadoId = usuarioService.obtenerUsuarioPorDefecto().getId();
 
             prestamoService.registrarPrestamo(
                     profesorSeleccionado.getId(),
                     usuarioLogueadoId,
-                    libroIngresado,
+                    libroAEnviar,
                     dpFechaVencimiento.getValue(),
                     txtMateria.getText().trim(),
                     spnCantidad.getValue()
@@ -312,6 +318,7 @@ public class NuevoPrestamoController {
 
     private void limpiarFormulario() {
         profesorSeleccionado = null;
+        libroSeleccionado = null; // <-- Limpiamos la referencia al resetear
         txtProfesorSeleccionado.clear();
         txtCodigoLibro.clear();
         txtTituloLibro.clear();
