@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,6 +20,11 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
+
+    // --- NUEVO MÉTODO PARA LISTAR USUARIOS ---
+    public List<Usuario> obtenerTodos() {
+        return usuarioRepository.findAll();
+    }
 
     // CAMBIO: id ahora es String (UUID)
     public Usuario buscarPorId(String id) {
@@ -41,7 +47,7 @@ public class UsuarioService {
                 .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas"));
     }
 
-    // NUEVO: Método para crear o actualizar usuarios y registrar el evento Outbox
+    // Método para crear o actualizar usuarios y registrar el evento Outbox
     @Transactional
     public Usuario guardar(Usuario usuario) {
         boolean esNuevo = (usuario.getId() == null || buscarPorIdOpcional(usuario.getId()).isEmpty());

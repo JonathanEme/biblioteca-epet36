@@ -52,6 +52,12 @@ public class MainController {
         cargarVista("/view/inventario.fxml");
     }
 
+    @FXML
+    public void mostrarUsuarios() {
+        cargarVista("/view/usuarios.fxml");
+        // Asegurate que la ruta coincida con tu lógica de carga de FXML.
+    }
+
     /**
      * Método genérico para cargar cualquier FXML en el centro del BorderPane
      */

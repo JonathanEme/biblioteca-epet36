@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<HBox spacing="20" prefWidth="900" prefHeight="600"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.UsuarioController"
+      style="-fx-padding: 20px;">
+
+    <!-- LADO IZQUIERDO: Tabla -->
+    <VBox spacing="10" HBox.hgrow="ALWAYS">
+        <Label text="Gestión de Usuarios" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+
+        <TableView fx:id="tablaUsuarios" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="colUsername" text="Usuario" prefWidth="120"/>
+                <TableColumn fx:id="colNombre" text="Nombre Completo" prefWidth="180"/>
+                <TableColumn fx:id="colRol" text="Rol" prefWidth="100"/>
+                <TableColumn fx:id="colEstado" text="Estado" prefWidth="80"/>
+            </columns>
+        </TableView>
+    </VBox>
+
+    <!-- LADO DERECHO: Formulario -->
+    <VBox spacing="15" prefWidth="300" style="-fx-background-color: #f8f9fa; -fx-padding: 20px; -fx-border-color: #dee2e6; -fx-border-radius: 5px;">
+        <Label text="Datos del Usuario" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+
+        <Label fx:id="lblMensaje" wrapText="true" style="-fx-font-weight: bold;"/>
+
+        <VBox spacing="5">
+            <Label text="Nombre de Usuario (*):"/>
+            <TextField fx:id="txtUsername" />
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Nombre Completo (*):"/>
+            <TextField fx:id="txtNombre" />
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Contraseña (*):"/>
+            <PasswordField fx:id="txtPassword" promptText="Dejar en blanco para no cambiar"/>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Rol (*):"/>
+            <ComboBox fx:id="cmbRol" maxWidth="Infinity"/>
+        </VBox>
+
+        <CheckBox fx:id="chkActivo" text="Usuario Activo" selected="true" />
+
+        <Region VBox.vgrow="ALWAYS" /> <!-- Empuja los botones hacia abajo -->
+
+        <HBox spacing="10" alignment="CENTER_RIGHT">
+            <Button text="Limpiar / Nuevo" onAction="#onLimpiarClick" style="-fx-cursor: hand;"/>
+            <Button text="Guardar" onAction="#onGuardarClick"
+                    style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"/>
+        </HBox>
+    </VBox>
+
+</HBox>
