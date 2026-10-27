@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "libros")
@@ -13,8 +14,8 @@ import java.time.LocalDateTime;
 public class Libro {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Builder.Default
+    private String id = UUID.randomUUID().toString();
 
     // Podría ser el código de barras o inventario interno
     @Column(unique = true)

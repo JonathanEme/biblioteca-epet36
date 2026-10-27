@@ -29,22 +29,24 @@ public class InventarioController {
     @FXML private TextField txtIsbn;
     @FXML private TextField txtTitulo;
     @FXML private TextField txtAutor;
+    @FXML private TextField txtEditorial;
+    @FXML private TextField txtAnioPublicacion;
     @FXML private TextField txtCategoria;
     @FXML private Spinner<Integer> spnCantidadTotal;
     @FXML private Label lblDisponibles;
     @FXML private Label lblMensaje;
 
-    private Long libroSeleccionadoId = null;
-    private ObservableList<Libro> librosList = FXCollections.observableArrayList();
+    private String libroSeleccionadoId = null;
+    private final ObservableList<Libro> librosList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
         configurarTabla();
         cargarDatos("");
 
-        txtBuscar.textProperty().addListener((obs, oldV, newV) -> {
-            cargarDatos(newV.trim());
-        });
+        txtBuscar.textProperty().addListener((obs, oldV, newV) ->
+                cargarDatos(newV != null ? newV.trim() : "")
+        );
 
         tablaLibros.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldV, newV) -> seleccionarLibro(newV)
@@ -56,15 +58,51 @@ public class InventarioController {
     private void configurarTabla() {
         colCodigo.setCellValueFactory(cell -> {
             String cod = cell.getValue().getCodigo();
-            return new SimpleStringProperty(cod != null ? cod : cell.getValue().getIsbn());
+            String isbn = cell.getValue().getIsbn();
+            if (cod != null && !cod.isBlank()) return new SimpleStringProperty(cod);
+            if (isbn != null && !isbn.isBlank()) return new SimpleStringProperty(isbn);
+            return new SimpleStringProperty("-");
         });
-        colTitulo.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getTitulo()));
-        colAutor.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getAutor()));
-        colStock.setCellValueFactory(cell ->
-                new SimpleStringProperty(cell.getValue().getDisponibles() + " / " + cell.getValue().getCantidadTotal())
-        );
+
+        colTitulo.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getTitulo() != null ? cell.getValue().getTitulo() : ""));
+
+        colAutor.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getAutor() != null ? cell.getValue().getAutor() : ""));
+
+        colStock.setCellValueFactory(cell -> {
+            int disp = cell.getValue().getDisponibles() != null ? cell.getValue().getDisponibles() : 0;
+            int total = cell.getValue().getCantidadTotal() != null ? cell.getValue().getCantidadTotal() : 0;
+            return new SimpleStringProperty(disp + " / " + total);
+        });
+
+        // Resalta en amarillo suave si faltan datos en el libro
+        tablaLibros.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Libro libro, boolean empty) {
+                super.updateItem(libro, empty);
+                if (empty || libro == null) {
+                    setStyle("");
+                } else if (esLibroIncompleto(libro)) {
+                    setStyle("-fx-background-color: #fff3cd; -fx-text-fill: #856404;");
+                } else {
+                    setStyle("");
+                }
+            }
+        });
 
         tablaLibros.setItems(librosList);
+    }
+
+    private boolean esLibroIncompleto(Libro libro) {
+        boolean sinCodigoEIsbn = (libro.getCodigo() == null || libro.getCodigo().isBlank()) &&
+                (libro.getIsbn() == null || libro.getIsbn().isBlank());
+        boolean sinAutor = (libro.getAutor() == null || libro.getAutor().isBlank());
+        boolean sinEditorial = (libro.getEditorial() == null || libro.getEditorial().isBlank());
+        boolean sinCategoria = (libro.getCategoria() == null || libro.getCategoria().isBlank());
+        boolean sinAnio = (libro.getAnio() == null || libro.getAnio() <= 0); // <-- Corregido a getAnio()
+
+        return sinCodigoEIsbn || sinAutor || sinEditorial || sinCategoria || sinAnio;
     }
 
     private void cargarDatos(String filtro) {
@@ -76,13 +114,22 @@ public class InventarioController {
     private void seleccionarLibro(Libro libro) {
         if (libro != null) {
             libroSeleccionadoId = libro.getId();
-            txtCodigo.setText(libro.getCodigo());
-            txtIsbn.setText(libro.getIsbn());
-            txtTitulo.setText(libro.getTitulo());
-            txtAutor.setText(libro.getAutor());
-            txtCategoria.setText(libro.getCategoria());
-            spnCantidadTotal.getValueFactory().setValue(libro.getCantidadTotal());
-            lblDisponibles.setText("Disponibles actualmente: " + libro.getDisponibles());
+            txtCodigo.setText(libro.getCodigo() != null ? libro.getCodigo() : "");
+            txtIsbn.setText(libro.getIsbn() != null ? libro.getIsbn() : "");
+            txtTitulo.setText(libro.getTitulo() != null ? libro.getTitulo() : "");
+            txtAutor.setText(libro.getAutor() != null ? libro.getAutor() : "");
+            txtEditorial.setText(libro.getEditorial() != null ? libro.getEditorial() : "");
+
+            Integer anio = libro.getAnio(); // <-- Corregido a getAnio()
+            txtAnioPublicacion.setText(anio != null && anio > 0 ? String.valueOf(anio) : "");
+
+            txtCategoria.setText(libro.getCategoria() != null ? libro.getCategoria() : "");
+
+            int total = libro.getCantidadTotal() != null ? libro.getCantidadTotal() : 1;
+            spnCantidadTotal.getValueFactory().setValue(total);
+
+            int disp = libro.getDisponibles() != null ? libro.getDisponibles() : 0;
+            lblDisponibles.setText("Disponibles actualmente: " + disp);
         }
     }
 
@@ -94,12 +141,24 @@ public class InventarioController {
                 return;
             }
 
+            Integer anioParsed = null;
+            if (!txtAnioPublicacion.getText().isBlank()) {
+                try {
+                    anioParsed = Integer.parseInt(txtAnioPublicacion.getText().trim());
+                } catch (NumberFormatException e) {
+                    mostrarMensajeError("El año de publicación debe ser un número entero válido.");
+                    return;
+                }
+            }
+
             Libro libro = Libro.builder()
                     .id(libroSeleccionadoId)
                     .codigo(txtCodigo.getText().trim())
                     .isbn(txtIsbn.getText().trim())
                     .titulo(txtTitulo.getText().trim())
                     .autor(txtAutor.getText().trim())
+                    .editorial(txtEditorial.getText().trim())
+                    .anio(anioParsed) // <-- Corregido a .anio(...)
                     .categoria(txtCategoria.getText().trim())
                     .cantidadTotal(spnCantidadTotal.getValue())
                     .build();
@@ -122,10 +181,13 @@ public class InventarioController {
         txtIsbn.clear();
         txtTitulo.clear();
         txtAutor.clear();
+        txtEditorial.clear();
+        txtAnioPublicacion.clear();
         txtCategoria.clear();
         spnCantidadTotal.getValueFactory().setValue(1);
         lblDisponibles.setText("-");
         tablaLibros.getSelectionModel().clearSelection();
+        lblMensaje.setText("");
     }
 
     private void mostrarMensajeExito(String mensaje) {

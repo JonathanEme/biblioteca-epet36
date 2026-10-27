@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface LibroRepository extends JpaRepository<Libro, Long> {
+public interface LibroRepository extends JpaRepository<Libro, String> {
     // Para buscar si el libro ya existe antes de crearlo "al vuelo"
     Optional<Libro> findByIsbn(String isbn);
     Optional<Libro> findByCodigo(String codigo);

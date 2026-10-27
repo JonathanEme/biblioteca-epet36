@@ -34,56 +34,59 @@ public class ProfesorController {
     @FXML private CheckBox chkActivo;
     @FXML private Label lblMensaje;
 
-    // ID del profesor seleccionado (para saber si estamos editando o creando)
-    private Long profesorSeleccionadoId = null;
+    // CAMBIO VITAL: Ahora la referencia es String (UUID)
+    private String profesorSeleccionadoId = null;
 
-    private ObservableList<Profesor> profesoresList = FXCollections.observableArrayList();
+    private final ObservableList<Profesor> profesoresList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
         configurarTabla();
         cargarDatos();
 
-        // Listener para cargar los datos en el formulario cuando se hace clic en una fila
+        // Listener para cargar los datos en el formulario cuando se selecciona una fila
         tablaProfesores.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> seleccionarProfesor(newValue)
         );
     }
 
     private void configurarTabla() {
-        colDni.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDni()));
-        colApellido.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getApellido()));
-        colNombre.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getNombre()));
+        // Blindaje contra valores nulos en la tabla
+        colDni.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getDni() != null ? cell.getValue().getDni() : ""));
 
-        colContacto.setCellValueFactory(cell -> {
-            String contacto = cell.getValue().getEmailTelefono();
-            return new SimpleStringProperty(contacto != null ? contacto : "");
-        });
+        colApellido.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getApellido() != null ? cell.getValue().getApellido() : ""));
+
+        colNombre.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getNombre() != null ? cell.getValue().getNombre() : ""));
+
+        colContacto.setCellValueFactory(cell ->
+                new SimpleStringProperty(cell.getValue().getEmailTelefono() != null ? cell.getValue().getEmailTelefono() : ""));
 
         colEstado.setCellValueFactory(cell ->
-                new SimpleStringProperty(cell.getValue().getActivo() ? "Activo" : "Inactivo")
+                new SimpleStringProperty(Boolean.TRUE.equals(cell.getValue().getActivo()) ? "Activo" : "Inactivo")
         );
 
         tablaProfesores.setItems(profesoresList);
     }
 
     private void cargarDatos() {
-        // Obtenemos todos los profesores (activos e inactivos para poder administrarlos)
-        // Usamos el repositorio directamente o agregamos un método findAll() en el servicio
-        List<Profesor> todos = profesorService.obtenerTodosActivos(); // Por ahora mostramos los activos, luego ajustamos
+        List<Profesor> todos = profesorService.obtenerTodosActivos();
         profesoresList.clear();
         profesoresList.addAll(todos);
     }
 
     private void seleccionarProfesor(Profesor profesor) {
         if (profesor != null) {
-            profesorSeleccionadoId = profesor.getId();
-            txtDni.setText(profesor.getDni());
+            profesorSeleccionadoId = profesor.getId(); // String UUID
+            txtDni.setText(profesor.getDni() != null ? profesor.getDni() : "");
             txtNombre.setText(profesor.getNombre());
             txtApellido.setText(profesor.getApellido());
-            txtContacto.setText(profesor.getEmailTelefono());
-            chkActivo.setSelected(profesor.getActivo());
-            // Deshabilitamos el DNI para no romper relaciones si se edita
+            txtContacto.setText(profesor.getEmailTelefono() != null ? profesor.getEmailTelefono() : "");
+            chkActivo.setSelected(Boolean.TRUE.equals(profesor.getActivo()));
+
+            // Deshabilitamos el DNI al editar para mantener la integridad
             txtDni.setDisable(true);
         }
     }
@@ -97,7 +100,7 @@ public class ProfesorController {
             }
 
             Profesor profesor = Profesor.builder()
-                    .id(profesorSeleccionadoId) // Si es null, Hibernate hace INSERT. Si tiene número, hace UPDATE.
+                    .id(profesorSeleccionadoId) // Si es null, ProfesorService asignará un nuevo UUID
                     .dni(txtDni.getText().trim())
                     .nombre(txtNombre.getText().trim())
                     .apellido(txtApellido.getText().trim())
@@ -105,11 +108,12 @@ public class ProfesorController {
                     .activo(chkActivo.isSelected())
                     .build();
 
+            // Llama al servicio que guarda en SQLite y registra el evento en outbox_events
             profesorService.guardar(profesor);
             mostrarMensajeExito("Profesor guardado correctamente.");
 
-            onLimpiarClick(); // Limpia formulario
-            cargarDatos();    // Refresca tabla
+            onLimpiarClick();
+            cargarDatos();
 
         } catch (Exception e) {
             mostrarMensajeError(e.getMessage());
@@ -120,7 +124,7 @@ public class ProfesorController {
     public void onLimpiarClick() {
         profesorSeleccionadoId = null;
         txtDni.clear();
-        txtDni.setDisable(false); // Volvemos a habilitar para nuevos registros
+        txtDni.setDisable(false);
         txtNombre.clear();
         txtApellido.clear();
         txtContacto.clear();

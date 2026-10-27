@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ProfesorRepository extends JpaRepository<Profesor, Long> {
+public interface ProfesorRepository extends JpaRepository<Profesor,String> {
     Optional<Profesor> findByDni(String dni);
     List<Profesor> findByActivoTrueOrderByApellidoAscNombreAsc();
     Optional<Profesor> findByNombreIgnoreCaseAndApellidoIgnoreCase(String nombre, String apellido);

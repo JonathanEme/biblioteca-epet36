@@ -1,6 +1,8 @@
 package com.epet36.biblioteca.controller;
 
 import com.epet36.biblioteca.model.Prestamo;
+import com.epet36.biblioteca.model.PrestamoDetalle;
+import com.epet36.biblioteca.model.Profesor;
 import com.epet36.biblioteca.repository.PrestamoRepository;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -24,8 +26,6 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class DashboardController implements Initializable {
 
-    // Para el dashboard de lectura rápida, inyectar el repositorio directamente es aceptable,
-    // aunque en sistemas más grandes delegaríamos esto a un ReporteService.
     private final PrestamoRepository prestamoRepository;
 
     @FXML private Label lblActivos;
@@ -37,7 +37,7 @@ public class DashboardController implements Initializable {
     @FXML private TableColumn<Prestamo, String> colVencimiento;
     @FXML private TableColumn<Prestamo, String> colDiasRetraso;
 
-    private ObservableList<Prestamo> prestamosVencidosList = FXCollections.observableArrayList();
+    private final ObservableList<Prestamo> prestamosVencidosList = FXCollections.observableArrayList();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -46,46 +46,69 @@ public class DashboardController implements Initializable {
     }
 
     private void configurarTabla() {
-        // Extraemos nombre completo del profesor
-        colProfesor.setCellValueFactory(cell ->
-                new SimpleStringProperty(cell.getValue().getProfesor().getNombre() + " " + cell.getValue().getProfesor().getApellido())
-        );
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        // Extraemos el título del libro
+        // Extraemos nombre completo del profesor con blindaje nulo
+        colProfesor.setCellValueFactory(cell -> {
+            Prestamo p = cell.getValue();
+            if (p != null && p.getProfesor() != null) {
+                Profesor prof = p.getProfesor();
+                String nom = prof.getNombre() != null ? prof.getNombre() : "";
+                String ape = prof.getApellido() != null ? prof.getApellido() : "";
+                return new SimpleStringProperty((nom + " " + ape).trim());
+            }
+            return new SimpleStringProperty("-");
+        });
+
+        // Extraemos el título del libro con blindaje nulo
         colLibro.setCellValueFactory(cell -> {
             Prestamo p = cell.getValue();
-            if (!p.getDetalles().isEmpty()) {
-                return new SimpleStringProperty(p.getDetalles().get(0).getLibro().getTitulo());
+            if (p != null && p.getDetalles() != null && !p.getDetalles().isEmpty()) {
+                PrestamoDetalle d = p.getDetalles().get(0);
+                if (d != null && d.getLibro() != null && d.getLibro().getTitulo() != null) {
+                    return new SimpleStringProperty(d.getLibro().getTitulo());
+                }
             }
             return new SimpleStringProperty("N/A");
         });
 
         // Formateamos la fecha de vencimiento
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        colVencimiento.setCellValueFactory(cell ->
-                new SimpleStringProperty(cell.getValue().getFechaVencimiento().format(formatter))
-        );
+        colVencimiento.setCellValueFactory(cell -> {
+            Prestamo p = cell.getValue();
+            if (p != null && p.getFechaVencimiento() != null) {
+                return new SimpleStringProperty(p.getFechaVencimiento().format(formatter));
+            }
+            return new SimpleStringProperty("-");
+        });
 
         // Calculamos los días de retraso
         colDiasRetraso.setCellValueFactory(cell -> {
-            LocalDate vencimiento = cell.getValue().getFechaVencimiento();
-            long dias = ChronoUnit.DAYS.between(vencimiento, LocalDate.now());
-            return new SimpleStringProperty(dias + " días");
+            Prestamo p = cell.getValue();
+            if (p != null && p.getFechaVencimiento() != null) {
+                long dias = ChronoUnit.DAYS.between(p.getFechaVencimiento(), LocalDate.now());
+                return new SimpleStringProperty(dias + (dias == 1 ? " día" : " días"));
+            }
+            return new SimpleStringProperty("-");
         });
 
         tablaVencidos.setItems(prestamosVencidosList);
     }
 
     public void cargarDatosDashboard() {
-        // Usamos los nuevos métodos
-        List<Prestamo> activos = prestamoRepository.findByEstadoActivoOParcialConDetalles();
-        lblActivos.setText(String.valueOf(activos.size()));
+        try {
+            List<Prestamo> activos = prestamoRepository.findByEstadoActivoOParcialConDetalles();
+            lblActivos.setText(String.valueOf(activos.size()));
 
-        List<Prestamo> vencidos = prestamoRepository.findByEstadoAndFechaVencimientoBeforeConDetalles(LocalDate.now());
-        lblVencidos.setText(String.valueOf(vencidos.size()));
+            List<Prestamo> vencidos = prestamoRepository.findByEstadoAndFechaVencimientoBeforeConDetalles(LocalDate.now());
+            lblVencidos.setText(String.valueOf(vencidos.size()));
 
-        prestamosVencidosList.clear();
-        prestamosVencidosList.addAll(vencidos);
+            prestamosVencidosList.clear();
+            prestamosVencidosList.addAll(vencidos);
+        } catch (Exception e) {
+            lblActivos.setText("0");
+            lblVencidos.setText("0");
+            prestamosVencidosList.clear();
+        }
     }
 
     @FXML
