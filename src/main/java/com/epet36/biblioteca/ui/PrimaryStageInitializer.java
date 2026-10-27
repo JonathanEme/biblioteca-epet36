@@ -13,49 +13,38 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-@Component // ¡CRÍTICO! Si falta esto, Spring no lo detecta y la ventana nunca se abre.
+@Component
 public class PrimaryStageInitializer implements ApplicationListener<StageReadyEvent> {
 
     private final ApplicationContext applicationContext;
-    private final Resource mainFxml;
+    private final Resource loginFxml;
     private final String applicationTitle;
 
-    // Usamos el constructor para inyectar el contexto y las propiedades
     public PrimaryStageInitializer(
             ApplicationContext applicationContext,
-            // Asegúrate de que esta ruta coincida exactamente con tu archivo en resources
-            @Value("classpath:/view/main.fxml") Resource mainFxml,
+            @Value("classpath:/view/login.fxml") Resource loginFxml, // APUNTA AL LOGIN
             @Value("${spring.application.name:Sistema de Gestión de Biblioteca}") String applicationTitle) {
-
         this.applicationContext = applicationContext;
-        this.mainFxml = mainFxml;
+        this.loginFxml = loginFxml;
         this.applicationTitle = applicationTitle;
     }
 
     @Override
     public void onApplicationEvent(StageReadyEvent event) {
         try {
-            // 1. Preparamos el cargador del archivo FXML
-            FXMLLoader fxmlLoader = new FXMLLoader(mainFxml.getURL());
-
-            // 2. ¡LA MAGIA DE SPRING! Le decimos a JavaFX que use Spring para crear los controladores FXML
-            // Esto permite que el @RequiredArgsConstructor y la inyección de servicios funcionen en NuevoPrestamoController
+            FXMLLoader fxmlLoader = new FXMLLoader(loginFxml.getURL());
             fxmlLoader.setControllerFactory(applicationContext::getBean);
-
-            // 3. Cargamos la vista
             Parent root = fxmlLoader.load();
 
-            // 4. Configuramos y mostramos la ventana principal (Stage)
             Stage stage = event.getStage();
-            stage.setScene(new Scene(root, 700, 600)); // Ajusta el tamaño si lo necesitas
+            stage.setScene(new Scene(root, 400, 500)); // Tamaño chico para el login
             stage.setTitle(applicationTitle);
             stage.centerOnScreen();
-            stage.setMaximized(true);
-            stage.show(); // ¡Esto es lo que hace visible la ventana!
+            stage.setResizable(false);
+            stage.show();
 
         } catch (IOException e) {
-            // Si hay un error (ej. no encuentra el FXML), lo imprimimos para saber qué falló
-            throw new RuntimeException("Error fatal al cargar la vista principal FXML: " + mainFxml.getFilename(), e);
+            throw new RuntimeException("Error fatal al cargar login.fxml", e);
         }
     }
 }
