@@ -5,18 +5,23 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
-@Table(name = "profesores")
+@Table(name = "profesores", uniqueConstraints = {
+        // Aseguramos que no haya dos profesores con el mismo nombre y apellido
+        @UniqueConstraint(columnNames = {"nombre", "apellido"})
+})
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor @Builder
 public class Profesor {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Builder.Default
+    private String id = UUID.randomUUID().toString();
 
-    @Column(unique = true, nullable = false)
+    // Quitamos nullable = false. Sigue siendo unique por si lo cargan.
+    @Column(unique = true)
     private String dni;
 
     @Column(nullable = false)

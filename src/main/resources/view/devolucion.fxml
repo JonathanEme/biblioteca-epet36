@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="15" alignment="TOP_CENTER" prefWidth="900" prefHeight="600"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.DevolucionController"
+      style="-fx-padding: 20px;">
+
+    <Label text="Registrar Devolución e Historial" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+    <Label fx:id="lblMensaje" prefWidth="860" wrapText="true" style="-fx-font-size: 14px; -fx-font-weight: bold;" />
+
+    <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-background-color: #f4f4f4; -fx-padding: 15px; -fx-border-color: #ddd; -fx-border-radius: 5px;">
+        <Label text="Buscador Inteligente:" style="-fx-font-weight: bold;"/>
+        <TextField fx:id="txtBuscarDni" promptText="Profesor, Materia, Libro, Fecha..." prefWidth="250"/>
+        <Button text="Buscar Préstamos" onAction="#onBuscarClick" style="-fx-background-color: #6c757d; -fx-text-fill: white; -fx-cursor: hand;"/>
+    </HBox>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Historial de:" style="-fx-font-weight: bold;"/>
+        <Label fx:id="lblProfesorNombre" text="-" style="-fx-font-size: 14px; -fx-text-fill: #0056b3;"/>
+    </HBox>
+
+    <TableView fx:id="tablaPrestamos" VBox.vgrow="ALWAYS" prefHeight="300">
+        <columns>
+            <TableColumn fx:id="colLibro" text="Libro Prestado" prefWidth="250"/>
+            <TableColumn fx:id="colFechaPrestamo" text="Fecha Préstamo" prefWidth="110"/>
+            <TableColumn fx:id="colFechaVencimiento" text="Vencimiento" prefWidth="110"/>
+            <TableColumn fx:id="colCantidad" text="Devueltos / Totales" prefWidth="130"/>
+            <TableColumn fx:id="colEstado" text="Estado" prefWidth="220"/>
+        </columns>
+        <placeholder>
+            <Label text="No hay préstamos registrados en el sistema todavía."/>
+        </placeholder>
+    </TableView>
+
+    <HBox alignment="CENTER_RIGHT" style="-fx-padding: 10px 0 0 0;">
+        <Button text="Devolver Libro Seleccionado" onAction="#onDevolverClick"
+                style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-size: 15px; -fx-padding: 10px 20px; -fx-font-weight: bold; -fx-cursor: hand;"/>
+    </HBox>
+
+</VBox>

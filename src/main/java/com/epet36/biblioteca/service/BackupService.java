@@ -4,12 +4,14 @@ import com.epet36.biblioteca.model.Usuario;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -20,30 +22,28 @@ import java.util.stream.Stream;
 public class BackupService {
 
     private final AuditoriaService auditoriaService;
+    private final JdbcTemplate jdbcTemplate; // Inyectamos JdbcTemplate para comandos SQLite nativos
 
-    // Tomamos la URL de la base de datos desde el application.yml (ej: jdbc:sqlite:biblioteca.db)
     @Value("${spring.datasource.url}")
     private String datasourceUrl;
 
     private final String BACKUP_FOLDER = "backups";
 
-    /**
-     * Extrae el nombre del archivo de la URL de conexión JDBC.
-     */
     private String getDatabaseFilePath() {
-        return datasourceUrl.replace("jdbc:sqlite:", "");
+        // Limpiamos la URL por si tiene parámetros JDBC
+        String path = datasourceUrl.replace("jdbc:sqlite:", "");
+        if (path.contains("?")) {
+            path = path.substring(0, path.indexOf("?"));
+        }
+        return path;
     }
 
     /**
-     * Crea un backup de la base de datos actual.
+     * Crea un backup seguro usando el comando nativo VACUUM INTO de SQLite.
+     * Esto evita copiar el archivo en medio de una transacción y garantiza que no falten datos del WAL.
      */
     public String crearBackup(Usuario usuarioAutorizado) {
         try {
-            Path dbPath = Paths.get(getDatabaseFilePath());
-            if (!Files.exists(dbPath)) {
-                throw new IllegalStateException("El archivo de base de datos no existe: " + dbPath);
-            }
-
             Path backupDir = Paths.get(BACKUP_FOLDER);
             if (!Files.exists(backupDir)) {
                 Files.createDirectories(backupDir);
@@ -51,25 +51,28 @@ public class BackupService {
 
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String backupFileName = "backup_biblioteca_" + timestamp + ".db";
-            Path targetPath = backupDir.resolve(backupFileName);
+            Path targetPath = backupDir.resolve(backupFileName).toAbsolutePath();
 
-            // Copiamos el archivo. REPLACE_EXISTING por si acaso, aunque el timestamp lo hace único.
-            Files.copy(dbPath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            // Usamos las barras inclinadas hacia adelante para que SQLite entienda la ruta en Windows
+            String targetPathSql = targetPath.toString().replace("\\", "/");
+
+            // Comando NATIVO de SQLite para hacer backup consistente en caliente
+            jdbcTemplate.execute("VACUUM INTO '" + targetPathSql + "'");
 
             auditoriaService.registrar("BACKUP_CREAR", "Sistema", null, usuarioAutorizado,
                     "Backup creado exitosamente: " + backupFileName);
 
-            log.info("Backup creado: {}", targetPath.toAbsolutePath());
+            log.info("Backup creado exitosamente mediante VACUUM INTO: {}", targetPath);
             return targetPath.toString();
 
-        } catch (IOException e) {
-            log.error("Error al crear backup", e);
-            throw new RuntimeException("Error al crear el backup de la base de datos.", e);
+        } catch (Exception e) {
+            log.error("Error al crear el backup", e);
+            throw new RuntimeException("Error al generar el backup de la base de datos.", e);
         }
     }
 
     /**
-     * Restaura un backup específico. Por regla de negocio, primero hace un backup del estado actual.
+     * Restaura un backup específico.
      */
     public void restaurarBackup(String nombreArchivoBackup, Usuario usuarioAutorizado) {
         try {
@@ -78,13 +81,15 @@ public class BackupService {
                 throw new IllegalArgumentException("El archivo de backup no existe: " + nombreArchivoBackup);
             }
 
-            // Regla de Negocio Crítica: Backup de seguridad antes de pisar los datos
+            // 1. Resguardo previo
             crearBackup(usuarioAutorizado);
 
-            Path dbPath = Paths.get(getDatabaseFilePath());
+            Path dbPath = Paths.get(getDatabaseFilePath()).toAbsolutePath();
 
-            // ATENCIÓN: En un entorno de producción estricto con SQLite, idealmente se debe asegurar
-            // que no hay transacciones escribiendo en este milisegundo.
+            // 2. Forzamos un checkpoint en SQLite para consolidar transacciones
+            jdbcTemplate.execute("PRAGMA wal_checkpoint(TRUNCATE);");
+
+            // 3. Copia con reemplazo
             Files.copy(backupPath, dbPath, StandardCopyOption.REPLACE_EXISTING);
 
             auditoriaService.registrar("BACKUP_RESTAURAR", "Sistema", null, usuarioAutorizado,
@@ -92,22 +97,32 @@ public class BackupService {
 
             log.info("Backup restaurado desde: {}", backupPath.toAbsolutePath());
 
+        } catch (FileSystemException e) {
+            log.error("Error de bloqueo de archivo al restaurar", e);
+            throw new RuntimeException("No se pudo reemplazar la base de datos porque está en uso por la aplicación. Reinicie la aplicación e intente nuevamente.", e);
         } catch (IOException e) {
-            log.error("Error al restaurar backup", e);
+            log.error("Error al restaurar el backup", e);
             throw new RuntimeException("Error al restaurar la base de datos.", e);
         }
     }
 
     /**
-     * Lista todos los backups disponibles en la carpeta.
+     * Lista todos los backups disponibles, manejando el caso de carpeta inexistente.
      */
     public List<String> listarBackups() {
-        try (Stream<Path> paths = Files.list(Paths.get(BACKUP_FOLDER))) {
+        Path backupDir = Paths.get(BACKUP_FOLDER);
+
+        // Si la carpeta no existe todavía, devuelve lista vacía en lugar de lanzar excepción
+        if (!Files.exists(backupDir)) {
+            return Collections.emptyList();
+        }
+
+        try (Stream<Path> paths = Files.list(backupDir)) {
             return paths
                     .filter(Files::isRegularFile)
                     .map(path -> path.getFileName().toString())
                     .filter(name -> name.endsWith(".db"))
-                    .sorted((a, b) -> b.compareTo(a)) // Orden descendente (más recientes primero)
+                    .sorted((a, b) -> b.compareTo(a))
                     .collect(Collectors.toList());
         } catch (IOException e) {
             log.error("Error al listar backups", e);
