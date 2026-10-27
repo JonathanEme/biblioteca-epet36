@@ -2,6 +2,7 @@ package com.epet36.biblioteca.repository;
 
 import com.epet36.biblioteca.model.Prestamo;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -57,4 +58,8 @@ public interface PrestamoRepository extends JpaRepository<Prestamo, String> {
             "JOIN FETCH d.libro " +
             "ORDER BY p.fechaPrestamo DESC")
     List<Prestamo> obtenerTodosOrdenadosPorFechaDesc();
+
+    @Modifying
+    @Query("DELETE FROM Prestamo p WHERE p.estado = :estado")
+    int deleteByEstado(@Param("estado") String estado);
 }
