@@ -29,12 +29,13 @@ public class InventarioController {
     @FXML private TextField txtIsbn;
     @FXML private TextField txtTitulo;
     @FXML private TextField txtAutor;
+    @FXML private TextField txtEditorial;
+    @FXML private TextField txtAnioPublicacion;
     @FXML private TextField txtCategoria;
     @FXML private Spinner<Integer> spnCantidadTotal;
     @FXML private Label lblDisponibles;
     @FXML private Label lblMensaje;
 
-    // CAMBIO VITAL: Ahora la referencia es String (UUID)
     private String libroSeleccionadoId = null;
     private final ObservableList<Libro> librosList = FXCollections.observableArrayList();
 
@@ -55,7 +56,6 @@ public class InventarioController {
     }
 
     private void configurarTabla() {
-        // Blindaje contra valores nulos en columnas
         colCodigo.setCellValueFactory(cell -> {
             String cod = cell.getValue().getCodigo();
             String isbn = cell.getValue().getIsbn();
@@ -76,7 +76,33 @@ public class InventarioController {
             return new SimpleStringProperty(disp + " / " + total);
         });
 
+        // Resalta en amarillo suave si faltan datos en el libro
+        tablaLibros.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Libro libro, boolean empty) {
+                super.updateItem(libro, empty);
+                if (empty || libro == null) {
+                    setStyle("");
+                } else if (esLibroIncompleto(libro)) {
+                    setStyle("-fx-background-color: #fff3cd; -fx-text-fill: #856404;");
+                } else {
+                    setStyle("");
+                }
+            }
+        });
+
         tablaLibros.setItems(librosList);
+    }
+
+    private boolean esLibroIncompleto(Libro libro) {
+        boolean sinCodigoEIsbn = (libro.getCodigo() == null || libro.getCodigo().isBlank()) &&
+                (libro.getIsbn() == null || libro.getIsbn().isBlank());
+        boolean sinAutor = (libro.getAutor() == null || libro.getAutor().isBlank());
+        boolean sinEditorial = (libro.getEditorial() == null || libro.getEditorial().isBlank());
+        boolean sinCategoria = (libro.getCategoria() == null || libro.getCategoria().isBlank());
+        boolean sinAnio = (libro.getAnio() == null || libro.getAnio() <= 0); // <-- Corregido a getAnio()
+
+        return sinCodigoEIsbn || sinAutor || sinEditorial || sinCategoria || sinAnio;
     }
 
     private void cargarDatos(String filtro) {
@@ -87,11 +113,16 @@ public class InventarioController {
 
     private void seleccionarLibro(Libro libro) {
         if (libro != null) {
-            libroSeleccionadoId = libro.getId(); // String UUID
+            libroSeleccionadoId = libro.getId();
             txtCodigo.setText(libro.getCodigo() != null ? libro.getCodigo() : "");
             txtIsbn.setText(libro.getIsbn() != null ? libro.getIsbn() : "");
             txtTitulo.setText(libro.getTitulo() != null ? libro.getTitulo() : "");
             txtAutor.setText(libro.getAutor() != null ? libro.getAutor() : "");
+            txtEditorial.setText(libro.getEditorial() != null ? libro.getEditorial() : "");
+
+            Integer anio = libro.getAnio(); // <-- Corregido a getAnio()
+            txtAnioPublicacion.setText(anio != null && anio > 0 ? String.valueOf(anio) : "");
+
             txtCategoria.setText(libro.getCategoria() != null ? libro.getCategoria() : "");
 
             int total = libro.getCantidadTotal() != null ? libro.getCantidadTotal() : 1;
@@ -110,17 +141,28 @@ public class InventarioController {
                 return;
             }
 
+            Integer anioParsed = null;
+            if (!txtAnioPublicacion.getText().isBlank()) {
+                try {
+                    anioParsed = Integer.parseInt(txtAnioPublicacion.getText().trim());
+                } catch (NumberFormatException e) {
+                    mostrarMensajeError("El año de publicación debe ser un número entero válido.");
+                    return;
+                }
+            }
+
             Libro libro = Libro.builder()
-                    .id(libroSeleccionadoId) // Si es null, LibroService generará un UUID nuevo
+                    .id(libroSeleccionadoId)
                     .codigo(txtCodigo.getText().trim())
                     .isbn(txtIsbn.getText().trim())
                     .titulo(txtTitulo.getText().trim())
                     .autor(txtAutor.getText().trim())
+                    .editorial(txtEditorial.getText().trim())
+                    .anio(anioParsed) // <-- Corregido a .anio(...)
                     .categoria(txtCategoria.getText().trim())
                     .cantidadTotal(spnCantidadTotal.getValue())
                     .build();
 
-            // Invoca al servicio que actualiza SQLite y dispara el evento Outbox
             libroService.actualizarLibroMantenimiento(libro);
             mostrarMensajeExito("Libro guardado correctamente en el inventario.");
 
@@ -139,6 +181,8 @@ public class InventarioController {
         txtIsbn.clear();
         txtTitulo.clear();
         txtAutor.clear();
+        txtEditorial.clear();
+        txtAnioPublicacion.clear();
         txtCategoria.clear();
         spnCantidadTotal.getValueFactory().setValue(1);
         lblDisponibles.setText("-");

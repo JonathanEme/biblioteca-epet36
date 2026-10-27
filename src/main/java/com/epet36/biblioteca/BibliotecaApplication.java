@@ -14,5 +14,5 @@ public class BibliotecaApplication {
 		// JavaFxApplication se encargará de levantar Spring Boot por detrás.
 		Application.launch(JavaFxApplication.class, args);
 	}
-	{}
+
 }

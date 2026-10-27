@@ -20,13 +20,11 @@ public class LibroService {
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
-    // CAMBIO: id ahora es String (UUID)
     public Libro buscarPorId(String id) {
         return libroRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Libro no encontrado con ID: " + id));
     }
 
-    // Método auxiliar opcional por si necesitás chequear existencia sin lanzar excepción
     public Optional<Libro> buscarPorIdOpcional(String id) {
         return libroRepository.findById(id);
     }
@@ -52,24 +50,20 @@ public class LibroService {
             return porTitulo.get();
         }
 
-        // Si es un libro nuevo
         if (libroIngresado.getId() == null) {
-            libroIngresado.setId(UUID.randomUUID().toString()); // Aseguramos el UUID
+            libroIngresado.setId(UUID.randomUUID().toString());
         }
 
         libroIngresado.setCantidadTotal(cantidadRequerida);
         libroIngresado.setDisponibles(cantidadRequerida);
 
         Libro libroGuardado = libroRepository.save(libroIngresado);
-
-        // --- REGISTRAMOS EL EVENTO OUTBOX ---
         registrarEventoOutbox(libroGuardado, "INSERT");
 
         return libroGuardado;
     }
 
     @Transactional
-    // CAMBIO: id ahora es String (UUID)
     public void actualizarDisponibilidad(String id, int variacion) {
         Libro libro = buscarPorId(id);
         int nuevaDisponibilidad = libro.getDisponibles() + variacion;
@@ -80,8 +74,6 @@ public class LibroService {
 
         libro.setDisponibles(nuevaDisponibilidad);
         Libro libroGuardado = libroRepository.save(libro);
-
-        // --- REGISTRAMOS EL EVENTO OUTBOX ---
         registrarEventoOutbox(libroGuardado, "UPDATE");
     }
 
@@ -105,21 +97,22 @@ public class LibroService {
         boolean esNuevo = (libroEditado.getId() == null || buscarPorIdOpcional(libroEditado.getId()).isEmpty());
 
         if (esNuevo) {
-            // Es un alta manual directa al inventario
             if (libroEditado.getId() == null) {
-                libroEditado.setId(UUID.randomUUID().toString()); // Aseguramos el UUID
+                libroEditado.setId(UUID.randomUUID().toString());
             }
             libroEditado.setDisponibles(libroEditado.getCantidadTotal());
             libroGuardado = libroRepository.save(libroEditado);
         } else {
             Libro existente = buscarPorId(libroEditado.getId());
 
-            // Actualizamos metadatos
+            // Actualització de metadades (inclosos els nous camps)
             existente.setIsbn(libroEditado.getIsbn());
             existente.setCodigo(libroEditado.getCodigo());
             existente.setTitulo(libroEditado.getTitulo());
             existente.setAutor(libroEditado.getAutor());
             existente.setCategoria(libroEditado.getCategoria());
+            existente.setEditorial(libroEditado.getEditorial());
+            existente.setAnio(libroEditado.getAnio());
 
             int diferencia = libroEditado.getCantidadTotal() - existente.getCantidadTotal();
             int nuevaDisponibilidad = existente.getDisponibles() + diferencia;
@@ -134,13 +127,11 @@ public class LibroService {
             libroGuardado = libroRepository.save(existente);
         }
 
-        // --- REGISTRAMOS EL EVENTO OUTBOX ---
         registrarEventoOutbox(libroGuardado, esNuevo ? "INSERT" : "UPDATE");
 
         return libroGuardado;
     }
 
-    // --- MÉTODO AUXILIAR PARA EL OUTBOX ---
     private void registrarEventoOutbox(Libro libro, String operacion) {
         try {
             String jsonPayload = objectMapper.writeValueAsString(libro);
@@ -154,7 +145,6 @@ public class LibroService {
 
             outboxRepository.save(evento);
         } catch (Exception e) {
-            // Si falla la conversión a JSON, cancela toda la transacción de SQLite
             throw new RuntimeException("Error al serializar el evento Outbox para el libro: " + libro.getTitulo(), e);
         }
     }
