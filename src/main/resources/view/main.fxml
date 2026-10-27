@@ -32,12 +32,14 @@
             <Button text="Inventario" onAction="#mostrarInventario" maxWidth="Infinity"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 16px; -fx-alignment: BASELINE_LEFT; -fx-cursor: hand;"/>
 
-            <Button text="Usuarios" onAction="#mostrarUsuarios" maxWidth="Infinity"
+            <!-- Agregamos fx:id="btnUsuarios" -->
+            <Button fx:id="btnUsuarios" text="Usuarios" onAction="#mostrarUsuarios" maxWidth="Infinity"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 16px; -fx-alignment: BASELINE_LEFT; -fx-cursor: hand;"/>
 
-            <Region VBox.vgrow="ALWAYS" /> <!-- Espaciador para tirar el botón salir abajo -->
+            <Region VBox.vgrow="ALWAYS" />
 
-            <Button text="Cerrar Sesión" maxWidth="Infinity"
+            <!-- Agregamos onAction="#cerrarSesion" -->
+            <Button text="Cerrar Sesión" onAction="#cerrarSesion" maxWidth="Infinity"
                     style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;"/>
         </VBox>
     </left>

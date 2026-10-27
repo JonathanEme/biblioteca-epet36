@@ -38,8 +38,8 @@
         </VBox>
 
         <VBox spacing="5">
-            <Label text="Contraseña (*):"/>
-            <PasswordField fx:id="txtPassword" promptText="Dejar en blanco para no cambiar"/>
+            <Label fx:id="lblPasswordHelper" text="Contraseña (*):"/>
+            <TextField fx:id="txtPassword" promptText="Dejar en blanco para no cambiar"/>
         </VBox>
 
         <VBox spacing="5">

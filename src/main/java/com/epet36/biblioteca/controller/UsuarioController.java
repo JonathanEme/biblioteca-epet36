@@ -27,10 +27,11 @@ public class UsuarioController {
     // UI Formulario
     @FXML private TextField txtUsername;
     @FXML private TextField txtNombre;
-    @FXML private PasswordField txtPassword;
+    @FXML private TextField txtPassword;
     @FXML private ComboBox<String> cmbRol;
     @FXML private CheckBox chkActivo;
     @FXML private Label lblMensaje;
+    @FXML private Label lblPasswordHelper;
 
     private Usuario usuarioSeleccionado = null;
 
@@ -71,15 +72,17 @@ public class UsuarioController {
         txtNombre.setText(usuario.getNombre());
         cmbRol.setValue(usuario.getRol());
         chkActivo.setSelected(usuario.getActivo() != null && usuario.getActivo());
-        txtPassword.clear(); // Limpiamos la contraseña por seguridad
 
-        lblMensaje.setText(""); // Resetea mensajes
+        // --- ESTA ES LA LÍNEA CRÍTICA QUE MUESTRA LA CONTRASEÑA EN TEXTO PLANO ---
+        txtPassword.setText(usuario.getPasswordHash() != null ? usuario.getPasswordHash() : "");
+
+        lblPasswordHelper.setText("Contraseña actual (Modifique para cambiar):");
+        lblMensaje.setText("");
     }
 
     @FXML
     public void onGuardarClick() {
         try {
-            // Validaciones básicas
             if (txtUsername.getText().isBlank() || txtNombre.getText().isBlank() || cmbRol.getValue() == null) {
                 mostrarMensajeError("Por favor, complete los campos obligatorios (*).");
                 return;
@@ -92,7 +95,6 @@ public class UsuarioController {
                 return;
             }
 
-            // Construir la entidad
             Usuario usuarioAGuardar;
 
             if (esNuevo) {
@@ -101,7 +103,7 @@ public class UsuarioController {
                         .nombre(txtNombre.getText().trim())
                         .rol(cmbRol.getValue())
                         .activo(chkActivo.isSelected())
-                        .passwordHash(txtPassword.getText()) // A futuro: Hash con BCrypt
+                        .passwordHash(txtPassword.getText()) // El servicio lo encriptará
                         .build();
             } else {
                 usuarioAGuardar = usuarioSeleccionado;
@@ -110,13 +112,14 @@ public class UsuarioController {
                 usuarioAGuardar.setRol(cmbRol.getValue());
                 usuarioAGuardar.setActivo(chkActivo.isSelected());
 
-                // Solo actualizamos la contraseña si escribieron algo nuevo
+                // CAMBIO DE CONTRASEÑA: Si el admin escribió algo nuevo en el campo
                 if (!txtPassword.getText().isBlank()) {
                     usuarioAGuardar.setPasswordHash(txtPassword.getText());
                 }
             }
 
-            // Delegamos al servicio (guarda en SQLite y manda al Outbox para Turso)
+            // El UsuarioService (ya configurado en pasos anteriores) va a detectar
+            // si la contraseña no empieza con "$2" (BCrypt) y la hasheará automáticamente.
             usuarioService.guardar(usuarioAGuardar);
 
             mostrarMensajeExito(esNuevo ? "Usuario creado correctamente." : "Usuario actualizado.");
@@ -124,7 +127,7 @@ public class UsuarioController {
             onLimpiarClick();
 
         } catch (IllegalStateException e) {
-            mostrarMensajeError(e.getMessage()); // Atrapa error de username duplicado
+            mostrarMensajeError(e.getMessage());
         } catch (Exception e) {
             mostrarMensajeError("Error inesperado: " + e.getMessage());
         }
@@ -139,6 +142,7 @@ public class UsuarioController {
         txtPassword.clear();
         cmbRol.setValue(null);
         chkActivo.setSelected(true);
+        lblPasswordHelper.setText("Contraseña (*):");
         lblMensaje.setText("");
     }
 

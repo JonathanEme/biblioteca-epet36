@@ -42,12 +42,21 @@ public class UsuarioService {
     }
 
     public Usuario autenticar(String username, String password) {
-        // TODO: Implementar validación de hash (ej. BCrypt)
-        return usuarioRepository.findByUsername(username)
+        Usuario usuario = usuarioRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas"));
+
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new IllegalStateException("El usuario se encuentra inactivo.");
+        }
+
+        // Validación directa en texto plano contra la base de datos
+        if (usuario.getPasswordHash() == null || !usuario.getPasswordHash().equals(password)) {
+            throw new IllegalArgumentException("Credenciales inválidas");
+        }
+
+        return usuario;
     }
 
-    // Método para crear o actualizar usuarios y registrar el evento Outbox
     @Transactional
     public Usuario guardar(Usuario usuario) {
         boolean esNuevo = (usuario.getId() == null || buscarPorIdOpcional(usuario.getId()).isEmpty());
@@ -56,12 +65,12 @@ public class UsuarioService {
             usuario.setId(UUID.randomUUID().toString());
         }
 
-        // Validación de unicidad de username
         var existente = usuarioRepository.findByUsername(usuario.getUsername());
         if (existente.isPresent() && !existente.get().getId().equals(usuario.getId())) {
             throw new IllegalStateException("Ya existe un usuario con el username: " + usuario.getUsername());
         }
 
+        // Guardamos la contraseña tal cual en texto plano (en la columna password_hash)
         Usuario usuarioGuardado = usuarioRepository.save(usuario);
 
         // --- REGISTRAMOS EL EVENTO OUTBOX ---
