@@ -148,4 +148,34 @@ public class LibroService {
             throw new RuntimeException("Error al serializar el evento Outbox para el libro: " + libro.getTitulo(), e);
         }
     }
+
+    /**
+     * Guarda registros provenientes de Turso en la base de datos local SQLite.
+     * NO genera eventos Outbox para evitar bucles infinitos de sincronización.
+     */
+    @Transactional
+    public void sincronizarDesdeNube(Libro libroDesdeTurso) {
+        // Buscamos si ya existe localmente
+        Optional<Libro> existente = libroRepository.findById(libroDesdeTurso.getId());
+
+        if (existente.isPresent()) {
+            // Actualizamos los datos del registro local con los de la nube
+            Libro local = existente.get();
+            local.setCodigo(libroDesdeTurso.getCodigo());
+            local.setIsbn(libroDesdeTurso.getIsbn());
+            local.setTitulo(libroDesdeTurso.getTitulo());
+            local.setAutor(libroDesdeTurso.getAutor());
+            local.setEditorial(libroDesdeTurso.getEditorial());
+            local.setAnio(libroDesdeTurso.getAnio());
+            local.setCategoria(libroDesdeTurso.getCategoria());
+            local.setCantidadTotal(libroDesdeTurso.getCantidadTotal());
+            local.setDisponibles(libroDesdeTurso.getDisponibles());
+            local.setActivo(libroDesdeTurso.getActivo());
+
+            libroRepository.save(local);
+        } else {
+            // Si no existe, lo insertamos directamente
+            libroRepository.save(libroDesdeTurso);
+        }
+    }
 }

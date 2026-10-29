@@ -98,4 +98,25 @@ public class UsuarioService {
             throw new RuntimeException("Error al serializar el evento Outbox para el usuario: " + usuario.getUsername(), e);
         }
     }
+    /**
+     * Guarda usuarios provenientes de Turso en SQLite.
+     * NO genera eventos Outbox.
+     */
+    @Transactional
+    public void sincronizarDesdeNube(Usuario usuarioDesdeTurso) {
+        Optional<Usuario> existente = usuarioRepository.findById(usuarioDesdeTurso.getId());
+
+        if (existente.isPresent()) {
+            Usuario local = existente.get();
+            local.setUsername(usuarioDesdeTurso.getUsername());
+            local.setPasswordHash(usuarioDesdeTurso.getPasswordHash());
+            local.setNombre(usuarioDesdeTurso.getNombre());
+            local.setRol(usuarioDesdeTurso.getRol());
+            local.setActivo(usuarioDesdeTurso.getActivo());
+
+            usuarioRepository.save(local);
+        } else {
+            usuarioRepository.save(usuarioDesdeTurso);
+        }
+    }
 }

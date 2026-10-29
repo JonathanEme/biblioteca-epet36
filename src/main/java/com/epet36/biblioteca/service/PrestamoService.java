@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -133,6 +134,36 @@ public class PrestamoService {
             outboxRepository.save(evento);
         } catch (Exception e) {
             throw new RuntimeException("Error al serializar el evento Outbox para el préstamo ID: " + prestamo.getId(), e);
+        }
+    }
+
+    /**
+     * Guarda préstamos provenientes de Turso en SQLite.
+     * NO genera eventos Outbox.
+     */
+    @Transactional
+    public void sincronizarDesdeNube(Prestamo prestamoDesdeTurso) {
+        Optional<Prestamo> existente = prestamoRepository.findById(prestamoDesdeTurso.getId());
+
+        if (existente.isPresent()) {
+            Prestamo local = existente.get();
+            local.setProfesor(prestamoDesdeTurso.getProfesor());
+            local.setMateria(prestamoDesdeTurso.getMateria());
+            local.setFechaPrestamo(prestamoDesdeTurso.getFechaPrestamo());
+            local.setFechaVencimiento(prestamoDesdeTurso.getFechaVencimiento());
+            local.setFechaDevolucion(prestamoDesdeTurso.getFechaDevolucion());
+            local.setEstado(prestamoDesdeTurso.getEstado());
+
+            // Sincronizar los detalles (PrestamoDetalle)
+            if (local.getDetalles() != null && prestamoDesdeTurso.getDetalles() != null) {
+                local.getDetalles().clear(); // Limpiamos los detalles actuales
+                // Agregamos los que vienen de la nube
+                local.getDetalles().addAll(prestamoDesdeTurso.getDetalles());
+            }
+
+            prestamoRepository.save(local);
+        } else {
+            prestamoRepository.save(prestamoDesdeTurso);
         }
     }
 }

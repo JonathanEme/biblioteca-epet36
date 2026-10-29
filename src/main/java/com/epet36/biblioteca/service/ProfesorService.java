@@ -105,4 +105,26 @@ public class ProfesorService {
             throw new RuntimeException("Error al serializar el evento Outbox para el profesor: " + profesor.getNombre(), e);
         }
     }
+
+    /**
+     * Guarda profesores provenientes de Turso en SQLite.
+     * NO genera eventos Outbox.
+     */
+    @Transactional
+    public void sincronizarDesdeNube(Profesor profesorDesdeTurso) {
+        Optional<Profesor> existente = profesorRepository.findById(profesorDesdeTurso.getId());
+
+        if (existente.isPresent()) {
+            Profesor local = existente.get();
+            local.setDni(profesorDesdeTurso.getDni());
+            local.setNombre(profesorDesdeTurso.getNombre());
+            local.setApellido(profesorDesdeTurso.getApellido());
+            local.setEmailTelefono(profesorDesdeTurso.getEmailTelefono()); // o .setContacto(...)
+            local.setActivo(profesorDesdeTurso.getActivo());
+
+            profesorRepository.save(local);
+        } else {
+            profesorRepository.save(profesorDesdeTurso);
+        }
+    }
 }
