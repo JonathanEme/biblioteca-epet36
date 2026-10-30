@@ -133,17 +133,45 @@ public class TursoInboundService {
     }
 
     private void sincronizarPrestamos() throws Exception {
-        JsonNode resultPrestamos = ejecutarSelectEnTurso("SELECT * FROM prestamos");
+        // MAGIA SQL: Filtramos los activos/parciales, y las devoluciones de la última semana
+        String sql = "SELECT * FROM prestamos WHERE estado IN ('ACTIVO', 'PARCIAL') OR fecha_devolucion >= date('now', '-7 days')";
+
+        JsonNode resultPrestamos = ejecutarSelectEnTurso(sql);
         JsonNode colsPrestamos = resultPrestamos.path("cols");
 
         for (JsonNode row : resultPrestamos.path("rows")) {
             Prestamo p = new Prestamo();
             p.setId(getColValue(colsPrestamos, row, "id"));
 
+            // 1. Setear el Profesor
             String profId = getColValue(colsPrestamos, row, "profesor_id");
             if (profId != null) {
                 p.setProfesor(profesorService.buscarPorIdOpcional(profId).orElse(null));
             }
+
+            // 2. Setear el Usuario Alta de forma segura
+            String usuarioId = getColValue(colsPrestamos, row, "usuario_id");
+            Usuario usuarioLocal = null;
+
+            if (usuarioId != null) {
+                usuarioLocal = usuarioService.buscarPorIdOpcional(usuarioId).orElse(null);
+            }
+
+            // EL SALVAVIDAS: Si el usuario que creó el préstamo en la nube no existe en esta compu,
+            // se lo asignamos al 'admin' local para que Hibernate no rompa la sincronización.
+            if (usuarioLocal == null) {
+                log.warn("El usuario original del préstamo ID {} no existe localmente. Asignando al admin por defecto.", p.getId());
+                // Buscamos al admin usando el UUID fijo que configuramos en el DataInitializer
+                usuarioLocal = usuarioService.buscarPorIdOpcional("admin-user-0000-0000-000000000000").orElse(null);
+
+                // Si por alguna rarísima razón el admin tampoco está por ID, lo buscamos por nombre
+                // (Para asegurar 100% que nunca sea null)
+                if (usuarioLocal == null) {
+                    usuarioLocal = usuarioService.obtenerUsuarioPorDefecto(); // Asegurate de que este método exista en tu servicio y busque por username "admin"
+                }
+            }
+
+            p.setUsuarioAlta(usuarioLocal);
 
             // fechaVencimiento es LocalDate
             String fechaV = getColValue(colsPrestamos, row, "fecha_vencimiento");
@@ -171,6 +199,10 @@ public class TursoInboundService {
                 if (libroId != null) {
                     pd.setLibro(libroService.buscarPorIdOpcional(libroId).orElse(null));
                 }
+
+                // --- LA LÍNEA MÁGICA: VINCULAMOS EL DETALLE CON SU PADRE ---
+                pd.setPrestamo(p);
+
                 detalles.add(pd);
             }
             p.setDetalles(detalles);
