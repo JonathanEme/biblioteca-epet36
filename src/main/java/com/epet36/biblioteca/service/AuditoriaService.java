@@ -1,7 +1,7 @@
 package com.epet36.biblioteca.service;
 
 import com.epet36.biblioteca.model.Auditoria;
-import com.epet36.biblioteca.model.OutboxEvent;
+import com.epet36.biblioteca.event.OutboxEvent;
 import com.epet36.biblioteca.model.Usuario;
 import com.epet36.biblioteca.repository.AuditoriaRepository;
 import com.epet36.biblioteca.repository.OutboxEventRepository;

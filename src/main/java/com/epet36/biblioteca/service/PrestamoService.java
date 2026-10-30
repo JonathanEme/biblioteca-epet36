@@ -1,5 +1,6 @@
 package com.epet36.biblioteca.service;
 
+import com.epet36.biblioteca.event.OutboxEvent;
 import com.epet36.biblioteca.model.*;
 import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.epet36.biblioteca.repository.PrestamoRepository;

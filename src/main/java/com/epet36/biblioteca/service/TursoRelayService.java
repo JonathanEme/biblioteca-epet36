@@ -1,5 +1,6 @@
 package com.epet36.biblioteca.service;
 
+import com.epet36.biblioteca.event.OutboxEvent;
 import com.epet36.biblioteca.model.*;
 import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ public class TursoRelayService {
 
     @Value("${turso.token:}")
     private String tursoToken;
+    
 
     private static final int MAX_INTENTOS = 5;
 

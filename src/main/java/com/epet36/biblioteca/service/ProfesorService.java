@@ -1,6 +1,6 @@
 package com.epet36.biblioteca.service;
 
-import com.epet36.biblioteca.model.OutboxEvent;
+import com.epet36.biblioteca.event.OutboxEvent;
 import com.epet36.biblioteca.model.Profesor;
 import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.epet36.biblioteca.repository.ProfesorRepository;
@@ -110,16 +110,27 @@ public class ProfesorService {
      * Guarda profesores provenientes de Turso en SQLite.
      * NO genera eventos Outbox.
      */
+    /**
+     * Guarda profesores provenientes de Turso en SQLite.
+     * NO genera eventos Outbox. Previene duplicados por DNI.
+     */
     @Transactional
     public void sincronizarDesdeNube(Profesor profesorDesdeTurso) {
+        // 1. Buscamos primero por ID
         Optional<Profesor> existente = profesorRepository.findById(profesorDesdeTurso.getId());
+
+        // 2. Si no está por ID, buscamos por DNI (valor único)
+        if (existente.isEmpty() && profesorDesdeTurso.getDni() != null && !profesorDesdeTurso.getDni().isBlank()) {
+            existente = profesorRepository.findByDni(profesorDesdeTurso.getDni());
+        }
 
         if (existente.isPresent()) {
             Profesor local = existente.get();
+            // Unificamos forzando el ID de Turso sobre el registro local
             local.setDni(profesorDesdeTurso.getDni());
             local.setNombre(profesorDesdeTurso.getNombre());
             local.setApellido(profesorDesdeTurso.getApellido());
-            local.setEmailTelefono(profesorDesdeTurso.getEmailTelefono()); // o .setContacto(...)
+            local.setEmailTelefono(profesorDesdeTurso.getEmailTelefono());
             local.setActivo(profesorDesdeTurso.getActivo());
 
             profesorRepository.save(local);

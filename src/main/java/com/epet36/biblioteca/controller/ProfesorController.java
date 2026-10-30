@@ -2,6 +2,9 @@ package com.epet36.biblioteca.controller;
 
 import com.epet36.biblioteca.model.Profesor;
 import com.epet36.biblioteca.service.ProfesorService;
+import com.epet36.biblioteca.event.DataSincronizadaEvent;
+import javafx.application.Platform;
+import org.springframework.context.event.EventListener;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -141,5 +144,13 @@ public class ProfesorController {
     private void mostrarMensajeError(String mensaje) {
         lblMensaje.setText(mensaje);
         lblMensaje.setStyle("-fx-text-fill: #721c24;");
+    }
+
+    @EventListener
+    public void onDataSincronizada(DataSincronizadaEvent event) {
+        javafx.application.Platform.runLater(() -> {
+            // Como estos controladores no usan filtro de texto, llamamos al método vacío
+            cargarDatos();
+        });
     }
 }

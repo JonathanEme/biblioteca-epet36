@@ -1,7 +1,7 @@
 package com.epet36.biblioteca.service;
 
 import com.epet36.biblioteca.model.Libro;
-import com.epet36.biblioteca.model.OutboxEvent;
+import com.epet36.biblioteca.event.OutboxEvent;
 import com.epet36.biblioteca.repository.LibroRepository;
 import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -153,14 +153,28 @@ public class LibroService {
      * Guarda registros provenientes de Turso en la base de datos local SQLite.
      * NO genera eventos Outbox para evitar bucles infinitos de sincronización.
      */
+    /**
+     * Guarda libros provenientes de Turso en la base de datos local SQLite.
+     * NO genera eventos Outbox. Previene duplicados por Código o ISBN.
+     */
     @Transactional
     public void sincronizarDesdeNube(Libro libroDesdeTurso) {
-        // Buscamos si ya existe localmente
+        // 1. Buscamos primero por ID
         Optional<Libro> existente = libroRepository.findById(libroDesdeTurso.getId());
 
+        // 2. Búsqueda cruzada por código interno
+        if (existente.isEmpty() && libroDesdeTurso.getCodigo() != null && !libroDesdeTurso.getCodigo().isBlank()) {
+            existente = libroRepository.findByCodigo(libroDesdeTurso.getCodigo());
+        }
+
+        // 3. Búsqueda cruzada por ISBN
+        if (existente.isEmpty() && libroDesdeTurso.getIsbn() != null && !libroDesdeTurso.getIsbn().isBlank()) {
+            existente = libroRepository.findByIsbn(libroDesdeTurso.getIsbn());
+        }
+
         if (existente.isPresent()) {
-            // Actualizamos los datos del registro local con los de la nube
             Libro local = existente.get();
+            // Unificamos forzando el ID de Turso
             local.setCodigo(libroDesdeTurso.getCodigo());
             local.setIsbn(libroDesdeTurso.getIsbn());
             local.setTitulo(libroDesdeTurso.getTitulo());
@@ -174,7 +188,6 @@ public class LibroService {
 
             libroRepository.save(local);
         } else {
-            // Si no existe, lo insertamos directamente
             libroRepository.save(libroDesdeTurso);
         }
     }

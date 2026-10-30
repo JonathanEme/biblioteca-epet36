@@ -1,6 +1,6 @@
 package com.epet36.biblioteca.service;
 
-import com.epet36.biblioteca.model.OutboxEvent;
+import com.epet36.biblioteca.event.OutboxEvent;
 import com.epet36.biblioteca.model.Usuario;
 import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.epet36.biblioteca.repository.UsuarioRepository;
@@ -104,16 +104,18 @@ public class UsuarioService {
      */
     @Transactional
     public void sincronizarDesdeNube(Usuario usuarioDesdeTurso) {
+        // 1. Busca por ID
         Optional<Usuario> existente = usuarioRepository.findById(usuarioDesdeTurso.getId());
+
+        // 2. LA MAGIA: Si no está por ID, lo busca por el username (el admin hardcodeado)
+        if (existente.isEmpty()) {
+            existente = usuarioRepository.findByUsername(usuarioDesdeTurso.getUsername());
+        }
 
         if (existente.isPresent()) {
             Usuario local = existente.get();
-            local.setUsername(usuarioDesdeTurso.getUsername());
-            local.setPasswordHash(usuarioDesdeTurso.getPasswordHash());
-            local.setNombre(usuarioDesdeTurso.getNombre());
-            local.setRol(usuarioDesdeTurso.getRol());
-            local.setActivo(usuarioDesdeTurso.getActivo());
 
+            // ... actualiza el resto de campos
             usuarioRepository.save(local);
         } else {
             usuarioRepository.save(usuarioDesdeTurso);

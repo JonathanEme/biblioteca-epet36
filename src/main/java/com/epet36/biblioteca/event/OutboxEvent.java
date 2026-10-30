@@ -1,4 +1,4 @@
-package com.epet36.biblioteca.model;
+package com.epet36.biblioteca.event;
 
 import jakarta.persistence.*;
 import lombok.*;

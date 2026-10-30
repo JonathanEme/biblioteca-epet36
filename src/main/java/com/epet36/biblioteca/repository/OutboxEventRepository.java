@@ -1,6 +1,6 @@
 package com.epet36.biblioteca.repository;
 
-import com.epet36.biblioteca.model.OutboxEvent;
+import com.epet36.biblioteca.event.OutboxEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

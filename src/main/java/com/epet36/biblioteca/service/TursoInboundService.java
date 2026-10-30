@@ -1,11 +1,13 @@
 package com.epet36.biblioteca.service;
 
+import com.epet36.biblioteca.event.DataSincronizadaEvent;
 import com.epet36.biblioteca.model.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +19,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +33,7 @@ public class TursoInboundService {
     private final PrestamoService prestamoService;
 
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${turso.url:}")
     private String tursoUrl;
@@ -51,15 +53,19 @@ public class TursoInboundService {
 
         log.info("Iniciando sincronización de entrada (Pull) desde Turso...");
         try {
-            // 1. DESCARGAMOS Y MAPAEMOS LAS ENTIDADES PADRES
+            // 1. DESCARGAMOS Y MAPEAMOS LAS ENTIDADES PADRES
             sincronizarUsuarios();
             sincronizarProfesores();
             sincronizarLibros();
 
-            // 2. DESCARGAMOS Y MAPAEMOS LAS ENTIDADES HIJAS (Dependen de que los padres ya existan)
+            // 2. DESCARGAMOS Y MAPEAMOS LAS ENTIDADES HIJAS (Dependen de que los padres ya existan)
             sincronizarPrestamos();
 
             log.info("Sincronización de entrada completada con éxito.");
+
+            // 3. PUBLICAMOS EL EVENTO PARA NOTIFICAR Y REFRESCAR LA INTERFAZ DE JAVAFX
+            eventPublisher.publishEvent(new DataSincronizadaEvent(this));
+
         } catch (Exception e) {
             log.error("Error crítico al traer datos desde Turso: ", e);
         }
@@ -245,7 +251,9 @@ public class TursoInboundService {
             throw new RuntimeException("Error SQL en Turso: " + executeResult.path("error").path("message").asText());
         }
 
-        return executeResult.path("result");
+        // --- CORRECCIÓN VITAL ACÁ ---
+        // La API envuelve los datos adentro de un nodo "response"
+        return executeResult.path("response").path("result");
     }
 
     // Funciones auxiliares para interpretar la estructura de respuesta de Turso (Hrana)
