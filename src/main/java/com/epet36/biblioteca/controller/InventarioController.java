@@ -59,6 +59,9 @@ public class InventarioController {
     }
 
     private void configurarTabla() {
+        // Hacemos que las columnas se adapten automáticamente al ancho de la tabla
+        tablaLibros.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
         colCodigo.setCellValueFactory(cell -> {
             String cod = cell.getValue().getCodigo();
             String isbn = cell.getValue().getIsbn();
@@ -79,19 +82,28 @@ public class InventarioController {
             return new SimpleStringProperty(disp + " / " + total);
         });
 
-        // Resalta en amarillo suave si faltan datos en el libro
+        // Resalta en amarillo suave si faltan datos, PERO da prioridad absoluta si está seleccionada
         tablaLibros.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(Libro libro, boolean empty) {
                 super.updateItem(libro, empty);
                 if (empty || libro == null) {
                     setStyle("");
+                } else if (isSelected()) {
+                    // Color de selección destacado (Celeste/Azul claro) para que se note al instante
+                    setStyle("-fx-background-color: #AED6F1 !important; -fx-text-fill: #000000;");
                 } else if (esLibroIncompleto(libro)) {
+                    // Amarillo de advertencia solo si NO está seleccionada
                     setStyle("-fx-background-color: #fff3cd; -fx-text-fill: #856404;");
                 } else {
                     setStyle("");
                 }
             }
+        });
+
+        // Forzar el refresco visual de las filas cada vez que cambie la selección
+        tablaLibros.getSelectionModel().selectedItemProperty().addListener((obs, oldV, newV) -> {
+            tablaLibros.refresh();
         });
 
         tablaLibros.setItems(librosList);

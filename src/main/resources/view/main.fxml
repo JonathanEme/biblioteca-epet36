@@ -38,6 +38,11 @@
 
             <Region VBox.vgrow="ALWAYS" />
 
+            <VBox spacing="5" style="-fx-padding: 5px 0;">
+                <Label text="Tamaño de Fuente:" style="-fx-text-fill: white; -fx-font-size: 13px;"/>
+                <ComboBox fx:id="cmbTamanioFuente" prefWidth="Infinity" promptText="Seleccionar..." style="-fx-font-size: 12px;"/>
+            </VBox>
+
             <!-- Agregamos onAction="#cerrarSesion" -->
             <Button text="Cerrar Sesión" onAction="#cerrarSesion" maxWidth="Infinity"
                     style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;"/>

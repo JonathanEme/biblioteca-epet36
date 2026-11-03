@@ -26,4 +26,14 @@ public class SesionManager {
     public boolean isAdmin() {
         return usuarioLogueado != null && "ADMIN".equalsIgnoreCase(usuarioLogueado.getRol());
     }
+
+    private static double globalFontSize = 13.0; // Tamaño base por defecto
+
+    public static double getGlobalFontSize() {
+        return globalFontSize;
+    }
+
+    public static void setGlobalFontSize(double size) {
+        globalFontSize = size;
+    }
 }
