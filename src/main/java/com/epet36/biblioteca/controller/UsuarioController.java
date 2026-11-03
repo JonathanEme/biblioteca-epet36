@@ -2,11 +2,15 @@ package com.epet36.biblioteca.controller;
 
 import com.epet36.biblioteca.model.Usuario;
 import com.epet36.biblioteca.service.UsuarioService;
+import com.epet36.biblioteca.event.DataSincronizadaEvent;
+import org.springframework.context.event.EventListener;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -154,5 +158,13 @@ public class UsuarioController {
     private void mostrarMensajeError(String mensaje) {
         lblMensaje.setText(mensaje);
         lblMensaje.setStyle("-fx-text-fill: #721c24; -fx-background-color: #f8d7da; -fx-padding: 5px; -fx-background-radius: 3px;");
+    }
+
+    @EventListener
+    public void onDataSincronizada(DataSincronizadaEvent event) {
+
+    }
+
+    private void cargarDatos() {
     }
 }

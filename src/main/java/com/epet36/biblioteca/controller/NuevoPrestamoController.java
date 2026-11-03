@@ -1,11 +1,12 @@
 package com.epet36.biblioteca.controller;
 
+import com.epet36.biblioteca.config.SesionManager;
 import com.epet36.biblioteca.model.Libro;
 import com.epet36.biblioteca.model.Profesor;
+import com.epet36.biblioteca.model.Usuario;
 import com.epet36.biblioteca.service.LibroService;
 import com.epet36.biblioteca.service.PrestamoService;
 import com.epet36.biblioteca.service.ProfesorService;
-import com.epet36.biblioteca.service.UsuarioService;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -28,8 +29,8 @@ public class NuevoPrestamoController {
 
     private final PrestamoService prestamoService;
     private final ProfesorService profesorService;
-    private final UsuarioService usuarioService;
     private final LibroService libroService;
+    private final SesionManager sesionManager; // Inyectamos la sesión real del usuario logueado
 
     // UI Profesor
     @FXML private TextField txtProfesorSeleccionado;
@@ -39,7 +40,7 @@ public class NuevoPrestamoController {
     @FXML private TextField txtCodigoLibro;
     @FXML private TextField txtTituloLibro;
     @FXML private TextField txtAutorLibro;
-    private Libro libroSeleccionado = null; // <-- Guardamos la referencia del libro seleccionado
+    private Libro libroSeleccionado = null;
 
     // UI Préstamo
     @FXML private TextField txtMateria;
@@ -55,6 +56,18 @@ public class NuevoPrestamoController {
         dpFechaVencimiento.setValue(LocalDate.now().plusDays(14));
         spnCantidad.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 50, 1));
 
+        // 1. RESTRICCIÓN DE FECHAS: Bloquear fechas anteriores a la actual en el DatePicker
+        dpFechaVencimiento.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                if (date.isBefore(LocalDate.now())) {
+                    setDisable(true);
+                    setStyle("-fx-background-color: #e0e0e0;"); // Color gris para días deshabilitados
+                }
+            }
+        });
+
         configurarAutocompletadoLibro();
     }
 
@@ -64,7 +77,6 @@ public class NuevoPrestamoController {
     private void configurarAutocompletadoLibro() {
         sugerenciasPopup = new ContextMenu();
 
-        // Escucha cambios en el campo Título
         txtTituloLibro.textProperty().addListener((observable, oldValue, newValue) -> {
             if (txtTituloLibro.isFocused() && newValue != null && newValue.length() >= 3) {
                 mostrarSugerencias(newValue, txtTituloLibro);
@@ -73,7 +85,6 @@ public class NuevoPrestamoController {
             }
         });
 
-        // Escucha cambios en el campo Código/ISBN
         txtCodigoLibro.textProperty().addListener((observable, oldValue, newValue) -> {
             if (txtCodigoLibro.isFocused() && newValue != null && newValue.length() >= 3) {
                 mostrarSugerencias(newValue, txtCodigoLibro);
@@ -99,9 +110,8 @@ public class NuevoPrestamoController {
 
             MenuItem item = new MenuItem(libro.getTitulo() + " - " + libro.getAutor() + " (" + codigoTexto + ")");
 
-            // Al hacer clic guardamos la instancia de Libro con su UUID de la DB
             item.setOnAction(e -> {
-                this.libroSeleccionado = libro; // <-- Guardamos la entidad con UUID
+                this.libroSeleccionado = libro;
                 txtCodigoLibro.setText(codigoTexto);
                 txtTituloLibro.setText(libro.getTitulo());
                 txtAutorLibro.setText(libro.getAutor());
@@ -272,8 +282,6 @@ public class NuevoPrestamoController {
                 return;
             }
 
-            // Si el usuario no seleccionó de la sugerencia pero completó el formulario,
-            // armamos la instancia
             Libro libroAEnviar = (libroSeleccionado != null) ? libroSeleccionado : Libro.builder()
                     .codigo(txtCodigoLibro.getText().trim())
                     .titulo(txtTituloLibro.getText().trim())
@@ -285,7 +293,8 @@ public class NuevoPrestamoController {
                 return;
             }
 
-            String usuarioLogueadoId = usuarioService.obtenerUsuarioPorDefecto().getId();
+            // Obtenemos el ID del usuario real logueado a través del SesionManager
+            String usuarioLogueadoId = sesionManager.getUsuarioLogueado().getId();
 
             prestamoService.registrarPrestamo(
                     profesorSeleccionado.getId(),
@@ -318,7 +327,7 @@ public class NuevoPrestamoController {
 
     private void limpiarFormulario() {
         profesorSeleccionado = null;
-        libroSeleccionado = null; // <-- Limpiamos la referencia al resetear
+        libroSeleccionado = null;
         txtProfesorSeleccionado.clear();
         txtCodigoLibro.clear();
         txtTituloLibro.clear();

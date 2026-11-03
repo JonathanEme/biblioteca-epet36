@@ -2,6 +2,9 @@ package com.epet36.biblioteca.controller;
 
 import com.epet36.biblioteca.model.Libro;
 import com.epet36.biblioteca.service.LibroService;
+import com.epet36.biblioteca.event.DataSincronizadaEvent;
+import javafx.application.Platform;
+import org.springframework.context.event.EventListener;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -198,5 +201,14 @@ public class InventarioController {
     private void mostrarMensajeError(String mensaje) {
         lblMensaje.setText(mensaje);
         lblMensaje.setStyle("-fx-text-fill: #721c24;");
+    }
+
+    @EventListener
+    public void onDataSincronizada(DataSincronizadaEvent event) {
+        // Platform.runLater asegura que el refresco de la tabla se ejecute en el hilo visual de JavaFX
+        Platform.runLater(() -> {
+            String filtroActual = txtBuscar != null && txtBuscar.getText() != null ? txtBuscar.getText().trim() : "";
+            cargarDatos(filtroActual);
+        });
     }
 }

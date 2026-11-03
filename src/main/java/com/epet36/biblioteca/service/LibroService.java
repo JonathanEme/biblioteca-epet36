@@ -1,7 +1,7 @@
 package com.epet36.biblioteca.service;
 
 import com.epet36.biblioteca.model.Libro;
-import com.epet36.biblioteca.model.OutboxEvent;
+import com.epet36.biblioteca.event.OutboxEvent;
 import com.epet36.biblioteca.repository.LibroRepository;
 import com.epet36.biblioteca.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -146,6 +146,49 @@ public class LibroService {
             outboxRepository.save(evento);
         } catch (Exception e) {
             throw new RuntimeException("Error al serializar el evento Outbox para el libro: " + libro.getTitulo(), e);
+        }
+    }
+
+    /**
+     * Guarda registros provenientes de Turso en la base de datos local SQLite.
+     * NO genera eventos Outbox para evitar bucles infinitos de sincronización.
+     */
+    /**
+     * Guarda libros provenientes de Turso en la base de datos local SQLite.
+     * NO genera eventos Outbox. Previene duplicados por Código o ISBN.
+     */
+    @Transactional
+    public void sincronizarDesdeNube(Libro libroDesdeTurso) {
+        // 1. Buscamos primero por ID
+        Optional<Libro> existente = libroRepository.findById(libroDesdeTurso.getId());
+
+        // 2. Búsqueda cruzada por código interno
+        if (existente.isEmpty() && libroDesdeTurso.getCodigo() != null && !libroDesdeTurso.getCodigo().isBlank()) {
+            existente = libroRepository.findByCodigo(libroDesdeTurso.getCodigo());
+        }
+
+        // 3. Búsqueda cruzada por ISBN
+        if (existente.isEmpty() && libroDesdeTurso.getIsbn() != null && !libroDesdeTurso.getIsbn().isBlank()) {
+            existente = libroRepository.findByIsbn(libroDesdeTurso.getIsbn());
+        }
+
+        if (existente.isPresent()) {
+            Libro local = existente.get();
+            // Unificamos forzando el ID de Turso
+            local.setCodigo(libroDesdeTurso.getCodigo());
+            local.setIsbn(libroDesdeTurso.getIsbn());
+            local.setTitulo(libroDesdeTurso.getTitulo());
+            local.setAutor(libroDesdeTurso.getAutor());
+            local.setEditorial(libroDesdeTurso.getEditorial());
+            local.setAnio(libroDesdeTurso.getAnio());
+            local.setCategoria(libroDesdeTurso.getCategoria());
+            local.setCantidadTotal(libroDesdeTurso.getCantidadTotal());
+            local.setDisponibles(libroDesdeTurso.getDisponibles());
+            local.setActivo(libroDesdeTurso.getActivo());
+
+            libroRepository.save(local);
+        } else {
+            libroRepository.save(libroDesdeTurso);
         }
     }
 }
