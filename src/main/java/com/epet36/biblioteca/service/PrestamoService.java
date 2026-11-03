@@ -31,7 +31,7 @@ public class PrestamoService {
     public Prestamo registrarPrestamo(String profesorId, String usuarioId, Libro libroIngresado, LocalDate fechaVencimiento, String materia, int cantidad) {
 
         Profesor profesor = profesorService.buscarPorId(profesorId);
-        Usuario usuario = usuarioService.obtenerUsuarioPorDefecto();
+        Usuario usuario = usuarioService.buscarPorId(usuarioId);
 
         // PASO CLAVE: Le pasamos la cantidad al LibroService
         // Nota: Como LibroService también implementa Outbox, esto generará su propio evento para Turso.
