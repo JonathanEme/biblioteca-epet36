@@ -53,21 +53,46 @@ public class TursoInboundService {
 
         log.info("Iniciando sincronización de entrada (Pull) desde Turso...");
         try {
+            // 0. ASEGURAMOS QUE LAS TABLAS EXISTAN EN TURSO ANTES DE CONSULTAR
+            inicializarEsquemaTurso();
+
             // 1. DESCARGAMOS Y MAPEAMOS LAS ENTIDADES PADRES
             sincronizarUsuarios();
             sincronizarProfesores();
             sincronizarLibros();
 
-            // 2. DESCARGAMOS Y MAPEAMOS LAS ENTIDADES HIJAS (Dependen de que los padres ya existan)
+            // 2. DESCARGAMOS Y MAPEAMOS LAS ENTIDADES HIJAS
             sincronizarPrestamos();
 
             log.info("Sincronización de entrada completada con éxito.");
 
-            // 3. PUBLICAMOS EL EVENTO PARA NOTIFICAR Y REFRESCAR LA INTERFAZ DE JAVAFX
+            // 3. PUBLICAMOS EL EVENTO PARA REFRESCAR LA INTERFAZ EN JAVAFX
             eventPublisher.publishEvent(new DataSincronizadaEvent(this));
 
         } catch (Exception e) {
             log.error("Error crítico al traer datos desde Turso: ", e);
+        }
+    }
+
+    /**
+     * Crea las tablas en Turso si aún no existen en la nube.
+     */
+    private void inicializarEsquemaTurso() {
+        List<String> ddlStatements = List.of(
+                "CREATE TABLE IF NOT EXISTS usuarios (id TEXT PRIMARY KEY, username TEXT, password_hash TEXT, nombre TEXT, rol TEXT, activo INTEGER)",
+                "CREATE TABLE IF NOT EXISTS profesores (id TEXT PRIMARY KEY, dni TEXT, nombre TEXT, apellido TEXT, email_telefono TEXT, activo INTEGER)",
+                "CREATE TABLE IF NOT EXISTS libros (id TEXT PRIMARY KEY, codigo TEXT, isbn TEXT, titulo TEXT, autor TEXT, editorial TEXT, categoria TEXT, anio_publicacion INTEGER, cantidad_total INTEGER, disponibles INTEGER, activo INTEGER)",
+                "CREATE TABLE IF NOT EXISTS prestamos (id TEXT PRIMARY KEY, profesor_id TEXT, usuario_id TEXT, fecha_vencimiento TEXT, fecha_devolucion TEXT, materia TEXT, estado TEXT)",
+                "CREATE TABLE IF NOT EXISTS prestamo_detalle (id TEXT PRIMARY KEY, prestamo_id TEXT, libro_id TEXT, cantidad INTEGER, cantidad_devuelta INTEGER)",
+                "CREATE TABLE IF NOT EXISTS auditoria (id TEXT PRIMARY KEY, usuario_id TEXT, accion TEXT, entidad TEXT, entidad_id TEXT, detalle TEXT)"
+        );
+
+        for (String sql : ddlStatements) {
+            try {
+                ejecutarSelectEnTurso(sql);
+            } catch (Exception e) {
+                log.warn("No se pudo verificar/crear tabla en Turso: {}", e.getMessage());
+            }
         }
     }
 
