@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox alignment="CENTER" prefWidth="400" prefHeight="500" spacing="20"
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.epet36.biblioteca.controller.LoginController"
+      style="-fx-background-color: #f4f6f9;">
+
+    <VBox spacing="15" alignment="CENTER" style="-fx-background-color: white; -fx-padding: 30px; -fx-background-radius: 10px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
+
+        <Label text="Sistema de Biblioteca" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+        <Label text="Inicio de Sesión" style="-fx-font-size: 16px; -fx-text-fill: #7f8c8d;"/>
+
+        <Label fx:id="lblMensaje" wrapText="true" textAlignment="CENTER" />
+
+        <VBox spacing="5" prefWidth="250">
+            <Label text="Usuario:" style="-fx-font-weight: bold;"/>
+            <TextField fx:id="txtUsername" promptText="Ej: admin" style="-fx-padding: 8px;"/>
+        </VBox>
+
+        <VBox spacing="5" prefWidth="250">
+            <Label text="Contraseña:" style="-fx-font-weight: bold;"/>
+            <PasswordField fx:id="txtPassword" promptText="******" style="-fx-padding: 8px;"/>
+        </VBox>
+
+        <Button text="Ingresar al Sistema" onAction="#onIngresarClick" defaultButton="true"
+                style="-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10px; -fx-cursor: hand;" prefWidth="250"/>
+
+        <Button text="Salir" onAction="#onSalirClick" cancelButton="true"
+                style="-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-cursor: hand;" />
+    </VBox>
+
+</VBox>
