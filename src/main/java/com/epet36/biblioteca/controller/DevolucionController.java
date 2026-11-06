@@ -64,6 +64,9 @@ public class DevolucionController {
     private void configurarTabla() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
+        // 1. Columnas elásticas que ocupan todo el ancho disponible
+        tablaPrestamos.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
         colLibro.setCellValueFactory(cellData -> {
             Prestamo p = cellData.getValue();
             if (p != null && p.getDetalles() != null && !p.getDetalles().isEmpty()) {
@@ -115,12 +118,16 @@ public class DevolucionController {
             return new SimpleStringProperty(p.getEstado() != null ? p.getEstado() : "ACTIVO");
         });
 
+        // 2. Fila con prioridad absoluta para la selección visual
         tablaPrestamos.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(Prestamo item, boolean empty) {
                 super.updateItem(item, empty);
                 if (item == null || empty) {
                     setStyle("");
+                } else if (isSelected()) {
+                    // Si está seleccionada, color celeste destacado sin importar el estado
+                    setStyle("-fx-background-color: #AED6F1 !important; -fx-text-fill: #000000;");
                 } else if ("DEVUELTO".equals(item.getEstado())) {
                     setStyle("-fx-background-color: #d4edda;");
                 } else if ("PARCIAL".equals(item.getEstado())) {
@@ -129,6 +136,11 @@ public class DevolucionController {
                     setStyle("");
                 }
             }
+        });
+
+        // Refrescar tabla dinámicamente al cambiar la selección
+        tablaPrestamos.getSelectionModel().selectedItemProperty().addListener((obs, oldV, newV) -> {
+            tablaPrestamos.refresh();
         });
 
         tablaPrestamos.setItems(prestamosList);

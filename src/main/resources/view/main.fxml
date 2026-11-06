@@ -17,7 +17,7 @@
             </Label>
 
             <!-- Botones de navegación -->
-            <Button text="Dashboard" onAction="#mostrarDashboard" maxWidth="Infinity"
+            <Button text="Principal" onAction="#mostrarDashboard" maxWidth="Infinity"
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 16px; -fx-alignment: BASELINE_LEFT; -fx-cursor: hand;"/>
 
             <Button text="Nuevo Préstamo" onAction="#mostrarNuevoPrestamo" maxWidth="Infinity"
@@ -37,6 +37,11 @@
                     style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 16px; -fx-alignment: BASELINE_LEFT; -fx-cursor: hand;"/>
 
             <Region VBox.vgrow="ALWAYS" />
+
+            <VBox spacing="5" style="-fx-padding: 5px 0;">
+                <Label text="Tamaño de Fuente:" style="-fx-text-fill: white; -fx-font-size: 13px;"/>
+                <ComboBox fx:id="cmbTamanioFuente" prefWidth="Infinity" promptText="Seleccionar..." style="-fx-font-size: 12px;"/>
+            </VBox>
 
             <!-- Agregamos onAction="#cerrarSesion" -->
             <Button text="Cerrar Sesión" onAction="#cerrarSesion" maxWidth="Infinity"
